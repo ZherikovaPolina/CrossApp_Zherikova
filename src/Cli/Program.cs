@@ -24,17 +24,18 @@ else
     Console.WriteLine("Студентка: Жерікова Поліна, група ФЕІ-36");
     Console.WriteLine();
 
-    Console.WriteLine(new string('-', 52));
+    Console.WriteLine(new string('-', 90));
+    Console.WriteLine("{0,-30} {1}", "Параметр", "Значення");
+    Console.WriteLine(new string('-', 90));
 
-    Console.WriteLine($"ОС (OSDescription) : {info.OSDescription}");
-    Console.WriteLine($"ОС (Environment) : {info.EnvironmentOS}");
-    Console.WriteLine($"Архітектура процесу : {info.Architecture}");
-    Console.WriteLine($"Версія .NET (CLR) : {info.DotNetVersion}");
-    Console.WriteLine($"Runtime : {info.Runtime}");
-    Console.WriteLine($"Каталог застосунку : {info.ApplicationDirectory}");
-    Console.WriteLine($"Поточний каталог : {info.CurrentDirectory}");
+    Console.WriteLine("{0,-30} {1}", "OSDescription", info.OSDescription);
+    Console.WriteLine("{0,-30} {1}", "ОС (Environment)", info.EnvironmentOS);
+    Console.WriteLine("{0,-30} {1}", "Архітектура процесу", info.Architecture);
+    Console.WriteLine("{0,-30} {1}", "Версія .NET (CLR)", info.DotNetVersion);
+    Console.WriteLine("{0,-30} {1}", "Runtime", info.Runtime);
+    Console.WriteLine("{0,-30} {1}", "Каталог застосунку", info.ApplicationDirectory);
+    Console.WriteLine("{0,-30} {1}", "Поточний каталог", info.CurrentDirectory);
+    Console.WriteLine("{0,-30} {1}", "Предметна область", info.Domain);
 
-    Console.WriteLine(new string('-', 52));
-
-    Console.WriteLine($"Предметна область: {info.Domain} (клієнти, товари, замовлення, рядки замовлень)");
+    Console.WriteLine(new string('-', 90));
 }
