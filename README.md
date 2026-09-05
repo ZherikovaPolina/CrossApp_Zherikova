@@ -13,3 +13,12 @@ dotnet run --project src/Cli
 
 ## Середовище
 .NET SDK 8.0, Unix 15.6.1, ARM64.
+
+### Порівняння self-contained публікацій
+RID
+
+osx-arm64 = 76 MB 
+
+linux-x64 = 71 MB 
+
+Публікація для linux-x64 на 5 MB меншою за публікацію для osx-arm64.
