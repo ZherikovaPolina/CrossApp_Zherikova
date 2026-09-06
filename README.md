@@ -12,7 +12,7 @@ dotnet run --project src/Cli
 ```
 
 ## Середовище
-.NET SDK 8.0, Unix 15.6.1, ARM64.
+.NET SDK 10.0.400, Unix 15.6.1, ARM64.
 
 ### Порівняння self-contained публікацій
 RID
