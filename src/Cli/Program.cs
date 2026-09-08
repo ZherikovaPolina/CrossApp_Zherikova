@@ -10,7 +10,7 @@ var info = new
     Runtime = RuntimeInformation.FrameworkDescription,
     ApplicationDirectory = AppContext.BaseDirectory,
     CurrentDirectory = Environment.CurrentDirectory,
-    Domain = "Замовлення"
+    Domain = "Замовлення(клієнти, товари, замовлення, рядки замовлень)"
 };
 
 if (args.Contains("--json"))
