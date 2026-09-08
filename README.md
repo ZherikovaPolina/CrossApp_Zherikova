@@ -10,6 +10,10 @@
 dotnet build 
 dotnet run --project src/Cli
 ```
+Запуск із виведенням інформації у форматі JSON
+```bash
+dotnet run --project src/Cli -- --json
+```
 
 ## Середовище
 .NET SDK 10.0.400, Unix 15.6.1, ARM64.
