@@ -1,5 +1,9 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Text;
+using System.Text.Encodings.Web;
+
+Console.OutputEncoding = Encoding.UTF8;
 
 var info = new
 {
@@ -13,9 +17,14 @@ var info = new
     Domain = "Замовлення(клієнти, товари, замовлення, рядки замовлень)"
 };
 
+var jsonOptions = new JsonSerializerOptions
+{
+    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+};
+
 if (args.Contains("--json"))
 {
-    Console.WriteLine(JsonSerializer.Serialize(info));
+    Console.WriteLine(JsonSerializer.Serialize(info, jsonOptions));
 }
 else
 {
