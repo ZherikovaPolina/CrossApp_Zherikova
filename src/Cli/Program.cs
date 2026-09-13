@@ -1,21 +1,11 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Text;
 using System.Text.Json;
-using System.Text;
 using System.Text.Encodings.Web;
+using Core;
 
 Console.OutputEncoding = Encoding.UTF8;
 
-var info = new
-{
-    OSDescription = RuntimeInformation.OSDescription,
-    EnvironmentOS = Environment.OSVersion.ToString(),
-    Architecture = RuntimeInformation.ProcessArchitecture.ToString(),
-    DotNetVersion = Environment.Version.ToString(),
-    Runtime = RuntimeInformation.FrameworkDescription,
-    ApplicationDirectory = AppContext.BaseDirectory,
-    CurrentDirectory = Environment.CurrentDirectory,
-    Domain = "Замовлення(клієнти, товари, замовлення, рядки замовлень)"
-};
+EnvironmentReport report = EnvironmentInfo.Collect();
 
 var jsonOptions = new JsonSerializerOptions
 {
@@ -24,27 +14,23 @@ var jsonOptions = new JsonSerializerOptions
 
 if (args.Contains("--json"))
 {
-    Console.WriteLine(JsonSerializer.Serialize(info, jsonOptions));
+    Console.WriteLine(JsonSerializer.Serialize(report, jsonOptions));
 }
 else
 {
-    Console.WriteLine("CrossApp – практикум з крос-платформного програмування");
+    Console.WriteLine("CrossApp – інформація про середовище");
     Console.WriteLine();
     Console.WriteLine("Студентка: Жерікова Поліна, група ФЕІ-36");
     Console.WriteLine();
 
-    Console.WriteLine(new string('-', 90));
-    Console.WriteLine("{0,-30} {1}", "Параметр", "Значення");
-    Console.WriteLine(new string('-', 90));
+    Console.WriteLine(new string('-', 60));
 
-    Console.WriteLine("{0,-30} {1}", "OSDescription", info.OSDescription);
-    Console.WriteLine("{0,-30} {1}", "ОС (Environment)", info.EnvironmentOS);
-    Console.WriteLine("{0,-30} {1}", "Архітектура процесу", info.Architecture);
-    Console.WriteLine("{0,-30} {1}", "Версія .NET (CLR)", info.DotNetVersion);
-    Console.WriteLine("{0,-30} {1}", "Runtime", info.Runtime);
-    Console.WriteLine("{0,-30} {1}", "Каталог застосунку", info.ApplicationDirectory);
-    Console.WriteLine("{0,-30} {1}", "Поточний каталог", info.CurrentDirectory);
-    Console.WriteLine("{0,-30} {1}", "Предметна область", info.Domain);
+    Console.WriteLine($"ОС : {report.OsDescription}");
+    Console.WriteLine($"Runtime : {report.FrameworkDescription}");
+    Console.WriteLine($"Архітектура : {report.ProcessArchitecture}");
+    Console.WriteLine($"RID (визначено): {report.DetectedRid}");
+    Console.WriteLine($"RID (від .NET) : {report.ReportedRid}");
+    Console.WriteLine($"Каталог : {report.BaseDirectory}");
 
-    Console.WriteLine(new string('-', 90));
+    Console.WriteLine(new string('-', 60));
 }
