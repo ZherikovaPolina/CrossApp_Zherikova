@@ -486,3 +486,6 @@ $RECYCLE.BIN/
 # Build output
 bin/
 obj/
+# Publish output
+publish/
+publish-*/

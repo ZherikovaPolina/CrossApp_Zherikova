@@ -24,6 +24,7 @@ CrossApp/
 Cli → Core
 
 У проєкті Core на семестр заплановані каталоги:
+
 Dto/ — record-типи формату даних;
 
 Domain/ — сутності з поведінкою та інваріантами;
@@ -114,3 +115,51 @@ Self-contained версія є набагато більшою, оскільки
 dotnet build src/Core/Core.csproj
 ```
 У результаті створюються збірки для net8.0 та net10.0.
+
+### SingleFile
+
+Публікація одним виконуваним файлом:
+
+```bash
+dotnet publish src/Cli -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -o ./publish-single
+```
+У каталозі publish створюється 3 файли, основний виконуваний файл Cli має розмір 76 MB.
+Запуск:
+```bash
+./publish-single/Cli
+```
+
+### PublishTrimmed
+Публікація з trimming:
+```bash
+dotnet publish src/Cli -c Release -r osx-arm64 --self-contained true -p:PublishTrimmed=true -o ./publish-trimmed
+```
+Розмір каталогу publish-trimmed становить 20 MB.
+Під час збірки отримано 2 попередження IL2026, пов'язані з використанням:
+
+JsonSerializer.Serialize(report, jsonOptions)
+
+Попередження повідомляють, що під час trimming JSON-серіалізація може використовувати типи, які не вдається визначити під час аналізу.
+Trimming може видаляти код, який система вважає невикористовуваним. Це може створити проблеми для коду, який використовує reflection або динамічне визначення типів.
+
+Trimmed-версія успішно запускається:
+```bash
+./publish-trimmed/Cli
+```
+
+### Conditional compilation
+Для перевірки різних цільових версій використовувалися команди:
+```bash
+dotnet run --project src/Cli -f net8.0
+```
+Результат:
+
+Примітка збірки : збірка під net8.0
+
+Для .NET 10:
+```bash
+dotnet run --project src/Cli -f net10.0
+```
+Результат:
+
+Примітка збірки : збірка під net10.0
