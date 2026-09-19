@@ -1,0 +1,27 @@
+[
+  {
+    "id": "P301",
+    "name": "MacBook Air M2",
+    "price": 38999.00
+  },
+  {
+    "id": "P302",
+    "name": "iPhone 15 Plus",
+    "price": 32999.50
+  },
+  {
+    "id": "P303",
+    "name": "AirPods Max",
+    "price": 23999.00
+  },
+  {
+    "id": "P304",
+    "name": "Apple Pencil Pro",
+    "price": 5499.90
+  },
+  {
+    "id": "P305",
+    "name": "Google Pixel 9",
+    "price": 35999.50
+  }
+]

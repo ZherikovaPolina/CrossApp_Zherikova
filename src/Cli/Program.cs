@@ -27,33 +27,80 @@ Console.WriteLine(new string('-', 60));
 Console.WriteLine();
 
 string path = args.Length > 0
-? args[0]
-: Path.Combine("data", "sample.csv");
+    ? args[0]
+    : Path.Combine("data", "sample.csv");
 
 if (!File.Exists(path))
 {
-Console.WriteLine($"Файл не знайдено: {Path.GetFullPath(path)}");
-return 1;
+    Console.WriteLine($"Файл не знайдено: {Path.GetFullPath(path)}");
+    return 1;
 }
 
-ImportResult<ProductDto> result = ProductCsvImporter.Load(path);
+string extension = Path.GetExtension(path).ToLowerInvariant();
+
+if (Path.GetFileName(path).Equals("mixed.csv", StringComparison.OrdinalIgnoreCase))
+{
+    List<object> mixedResults = MixedCsvImporter.Load(path);
+
+    Console.WriteLine("Результати mixed.csv:");
+
+    foreach (object item in mixedResults)
+    {
+        switch (item)
+        {
+            case ProductDto product:
+                Console.WriteLine(
+                    $"Product: {product.Id} {product.Name} {product.Price:F2}");
+                break;
+
+            case OrderDto order:
+                Console.WriteLine(
+                    $"Order: {order.Id} {order.CustomerId} {order.ProductId} {order.Quantity}");
+                break;
+        }
+    }
+
+    return 0;
+}
+
+ImportResult<ProductDto>? result = extension switch
+{
+    ".csv" => ProductCsvImporter.Load(path),
+
+    ".json" => new ImportResult<ProductDto>(
+        ProductJsonImporter.Load(path),
+        []),
+
+    _ => null
+};
+
+if (result is null)
+{
+    Console.WriteLine($"Непідтримуваний формат файлу: {extension}");
+    Console.WriteLine("Підтримуються формати: .csv та .json");
+    return 1;
+}
 
 Console.WriteLine($"Завантажено записів: {result.Items.Count}");
 
 foreach (ProductDto p in result.Items.Take(5))
 {
-Console.WriteLine($" {p.Id,-6} {p.Name,-26} {p.Price,10:F2}");
+    Console.WriteLine($" {p.Id,-6} {p.Name,-26} {p.Price,10:F2}");
 }
 
-if (result.Errors.Count > 0)
-{
-Console.WriteLine($"Пропущено рядків: {result.Errors.Count}");
+int total = result.Items.Count + result.Errors.Count;
+int skipped = result.Errors.Count;
+double errorPercent = total == 0
+    ? 0
+    : skipped * 100.0 / total;
+
+Console.WriteLine(
+    $"Статистика: усього {total}, прийнято {result.Items.Count}, " +
+    $"пропущено {skipped}, помилки {errorPercent:F1}%");
 
 foreach (string e in result.Errors)
 {
     Console.WriteLine($" ! {e}");
-}
-
 }
 
 return 0;
