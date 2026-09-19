@@ -53,6 +53,22 @@ dotnet build src/Core/Core.csproj
 cd src/Cli/bin/Release/net10.0/osx-arm64/publish/
 ./Cli
 ```
+Запуск із CSV-файлом:
+```bash
+dotnet run --project src/Cli -- data/sample.csv
+```
+Запуск із JSON-файлом:
+```bash
+dotnet run --project src/Cli -- data/sample.json
+```
+Запуск змішаного CSV:
+```bash
+dotnet run --project src/Cli -- data/mixed.csv
+```
+Перевірка неіснуючого файлу:
+```bash
+dotnet run --project src/Cli -- data/not-found.csv
+```
 ## Publish
 ### Framework-dependent
 ```bash
