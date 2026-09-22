@@ -40,11 +40,11 @@ string extension = Path.GetExtension(path).ToLowerInvariant();
 
 if (Path.GetFileName(path).Equals("mixed.csv", StringComparison.OrdinalIgnoreCase))
 {
-    List<object> mixedResults = MixedCsvImporter.Load(path);
+    ImportResult<object> mixedResult = MixedCsvImporter.Load(path);
 
     Console.WriteLine("Результати mixed.csv:");
 
-    foreach (object item in mixedResults)
+    foreach (object item in mixedResult.Items)
     {
         switch (item)
         {
@@ -60,6 +60,15 @@ if (Path.GetFileName(path).Equals("mixed.csv", StringComparison.OrdinalIgnoreCas
         }
     }
 
+    Console.WriteLine();
+
+    Console.WriteLine($"Кількість помилок: {mixedResult.Errors.Count}");
+
+    foreach (string error in mixedResult.Errors)
+    {
+        Console.WriteLine($" ! {error}");
+    }
+
     return 0;
 }
 
@@ -67,9 +76,7 @@ ImportResult<ProductDto>? result = extension switch
 {
     ".csv" => ProductCsvImporter.Load(path),
 
-    ".json" => new ImportResult<ProductDto>(
-        ProductJsonImporter.Load(path),
-        []),
+    ".json" => ProductJsonImporter.Load(path),
 
     _ => null
 };

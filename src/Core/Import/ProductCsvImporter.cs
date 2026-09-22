@@ -42,44 +42,52 @@ public static class ProductCsvImporter
     }
 
     private static ParseOutcome ParseLine(string line)
+{
+    string[] parts = line.Split(
+        Separator,
+        StringSplitOptions.TrimEntries);
+
+    return parts switch
     {
-        string[] parts = line.Split(
-            Separator,
-            StringSplitOptions.TrimEntries);
+        { Length: < 3 }
+            => new ParseFailed(
+                $"очікую 3 колонки, отримав {parts.Length}"),
 
-        return parts switch
-        {
-            { Length: < 3 }
-                => new ParseFailed(
-                    $"очікую 3 колонки, отримав {parts.Length}"),
+        [_, "" , _]
+            => new ParseFailed(
+                "ID або назва порожні"),
 
-            [_, "", _]
-                => new ParseFailed(
-                    "ID або назва порожні"),
+        [var id, var name, var price]
+            when !decimal.TryParse(
+                price,
+                NumberStyles.Number,
+                CultureInfo.InvariantCulture,
+                out decimal parsedPrice)
+            => new ParseFailed(
+                $"ціна '{price}' не є коректним числом"),
 
-            [var id, var name, var price]
-                when !decimal.TryParse(
-                    price,
-                    NumberStyles.Number,
-                    CultureInfo.InvariantCulture,
-                    out decimal parsedPrice)
-                => new ParseFailed(
-                    $"ціна '{price}' не є коректним числом"),
+        [var id, var name, var price]
+            when decimal.Parse(
+                price,
+                NumberStyles.Number,
+                CultureInfo.InvariantCulture) <= 0
+            => new ParseFailed(
+                $"ціна '{price}' повинна бути більшою за 0"),
 
-            [var id, var name, var price]
-                => new ParseOk(
-                    new ProductDto(
-                        id,
-                        name,
-                        decimal.Parse(
-                            price,
-                            NumberStyles.Number,
-                            CultureInfo.InvariantCulture))),
+        [var id, var name, var price]
+            => new ParseOk(
+                new ProductDto(
+                    id,
+                    name,
+                    decimal.Parse(
+                        price,
+                        NumberStyles.Number,
+                        CultureInfo.InvariantCulture))),
 
-            _ => new ParseFailed(
-                $"занадто багато колонок: {parts.Length}")
-        };
-    }
+        _ => new ParseFailed(
+            $"занадто багато колонок: {parts.Length}")
+    };
+}
 
     private abstract record ParseOutcome;
 
