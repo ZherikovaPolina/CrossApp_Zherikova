@@ -53,26 +53,27 @@ public static class ProductCsvImporter
             => new ParseFailed(
                 $"очікую 3 колонки, отримав {parts.Length}"),
 
-        [_, "" , _]
-            => new ParseFailed(
-                "ID або назва порожні"),
+        ["", _, _] or [_, "", _]
+        => new ParseFailed(
+        "ID або назва порожні"),
 
         [var id, var name, var price]
-            when !decimal.TryParse(
-                price,
-                NumberStyles.Number,
-                CultureInfo.InvariantCulture,
-                out decimal parsedPrice)
-            => new ParseFailed(
-                $"ціна '{price}' не є коректним числом"),
+        when !decimal.TryParse(
+            price,
+            NumberStyles.Number,
+            CultureInfo.InvariantCulture,
+            out _)
+        => new ParseFailed(
+            $"ціна '{price}' не є коректним числом"),
 
-        [var id, var name, var price]
-            when decimal.Parse(
-                price,
-                NumberStyles.Number,
-                CultureInfo.InvariantCulture) <= 0
-            => new ParseFailed(
-                $"ціна '{price}' повинна бути більшою за 0"),
+    [var id, var name, var price]
+        when decimal.TryParse(
+            price,
+            NumberStyles.Number,
+            CultureInfo.InvariantCulture,
+            out decimal parsedPrice) && parsedPrice <= 0
+        => new ParseFailed(
+            $"ціна '{price}' повинна бути більшою за 0"),
 
         [var id, var name, var price]
             => new ParseOk(
