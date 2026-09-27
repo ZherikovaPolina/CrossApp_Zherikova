@@ -74,43 +74,68 @@ public static class MixedCsvImporter
                     break;
 
                 case "O":
-                    if (parts.Length != 5)
-                    {
-                        errors.Add(
-                            $"рядок {number}: для Order потрібно 5 колонок");
-                        continue;
-                    }
+    if (parts.Length != 7)
+    {
+        errors.Add(
+            $"рядок {number}: для Order потрібно 7 колонок");
+        continue;
+    }
 
-                    if (string.IsNullOrWhiteSpace(parts[1]) ||
-                        string.IsNullOrWhiteSpace(parts[2]) ||
-                        string.IsNullOrWhiteSpace(parts[3]))
-                    {
-                        errors.Add(
-                            $"рядок {number}: дані замовлення не можуть бути порожніми");
-                        continue;
-                    }
+    if (string.IsNullOrWhiteSpace(parts[1]) ||
+        string.IsNullOrWhiteSpace(parts[2]) ||
+        string.IsNullOrWhiteSpace(parts[3]) ||
+        string.IsNullOrWhiteSpace(parts[4]))
+    {
+        errors.Add(
+            $"рядок {number}: дані замовлення не можуть бути порожніми");
+        continue;
+    }
 
-                    if (!int.TryParse(parts[4], out int quantity))
-                    {
-                        errors.Add(
-                            $"рядок {number}: кількість '{parts[4]}' не є цілим числом");
-                        continue;
-                    }
+    if (!decimal.TryParse(
+            parts[5],
+            NumberStyles.Number,
+            CultureInfo.InvariantCulture,
+            out decimal orderPrice))
+    {
+        errors.Add(
+            $"рядок {number}: ціна '{parts[5]}' не є коректним числом");
+        continue;
+    }
 
-                    if (quantity <= 0)
-                    {
-                        errors.Add(
-                            $"рядок {number}: кількість повинна бути більшою за 0");
-                        continue;
-                    }
+    if (orderPrice < 0)
+    {
+        errors.Add(
+            $"рядок {number}: ціна не може бути від'ємною");
+        continue;
+    }
 
-                    results.Add(new OrderDto(
-                        parts[1],
-                        parts[2],
-                        parts[3],
-                        quantity));
+    if (!int.TryParse(parts[6], out int quantity))
+    {
+        errors.Add(
+            $"рядок {number}: кількість '{parts[6]}' не є цілим числом");
+        continue;
+    }
 
-                    break;
+    if (quantity <= 0)
+    {
+        errors.Add(
+            $"рядок {number}: кількість повинна бути більшою за 0");
+        continue;
+    }
+
+    OrderLineDto orderLine = new(
+        parts[3],
+        parts[4],
+        orderPrice,
+        quantity);
+
+    results.Add(new OrderDto(
+        parts[1],
+        parts[2],
+        false,
+        new List<OrderLineDto> { orderLine }));
+
+    break;
 
                 default:
                     errors.Add(
