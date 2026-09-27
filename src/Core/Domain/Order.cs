@@ -8,7 +8,8 @@ public sealed class Order
 
     public string Id { get; }
     public string CustomerId { get; }
-    public bool IsConfirmed { get; private set; }
+
+    public OrderStatus Status { get; private set; }
 
     public IReadOnlyList<OrderLine> Lines =>
         _lines.AsReadOnly();
@@ -22,7 +23,7 @@ public sealed class Order
     {
         Id = id;
         CustomerId = customerId;
-        IsConfirmed = false;
+        Status = OrderStatus.Draft;
     }
 
     public static Order Create(string customerId)
@@ -57,9 +58,9 @@ public sealed class Order
         decimal price,
         int quantity)
     {
-        if (IsConfirmed)
+        if (Status != OrderStatus.Draft)
             throw new InvalidOperationException(
-                $"Замовлення {Id} вже підтверджене, рядки додавати не можна");
+                $"До замовлення {Id} у стані {Status} не можна додавати рядки");
 
         _lines.Add(OrderLine.Create(
             productId,
@@ -74,7 +75,35 @@ public sealed class Order
             throw new InvalidOperationException(
                 $"Замовлення {Id} не можна підтвердити, оскільки воно не містить товарів");
 
-        IsConfirmed = true;
+        Status = Status switch
+        {
+            OrderStatus.Draft => OrderStatus.Confirmed,
+
+            OrderStatus.Confirmed => throw new InvalidOperationException(
+                $"Замовлення {Id} вже підтверджене"),
+
+            OrderStatus.Cancelled => throw new InvalidOperationException(
+                $"Скасоване замовлення {Id} не можна підтвердити"),
+
+            _ => throw new InvalidOperationException(
+                $"Невідомий стан замовлення {Id}")
+        };
+    }
+
+    public void Cancel()
+    {
+        Status = Status switch
+        {
+            OrderStatus.Draft => OrderStatus.Cancelled,
+
+            OrderStatus.Confirmed => OrderStatus.Cancelled,
+
+            OrderStatus.Cancelled => throw new InvalidOperationException(
+                $"Замовлення {Id} вже скасоване"),
+
+            _ => throw new InvalidOperationException(
+                $"Невідомий стан замовлення {Id}")
+        };
     }
 
     public OrderDto ToDto()
@@ -91,7 +120,7 @@ public sealed class Order
         return new OrderDto(
             Id,
             CustomerId,
-            IsConfirmed,
+            Status,
             lines);
     }
 
@@ -112,8 +141,25 @@ public sealed class Order
                 line.Quantity);
         }
 
-        if (dto.IsConfirmed)
-            order.Confirm();
+        switch (dto.Status)
+        {
+            case OrderStatus.Draft:
+                break;
+
+            case OrderStatus.Confirmed:
+                order.Confirm();
+                break;
+
+            case OrderStatus.Cancelled:
+                order.Cancel();
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(dto),
+                    dto.Status,
+                    "Невідомий статус замовлення");
+        }
 
         return order;
     }

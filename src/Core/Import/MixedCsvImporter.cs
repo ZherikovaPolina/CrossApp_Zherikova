@@ -1,5 +1,6 @@
 using System.Globalization;
 using Core.Dto;
+using Core.Domain;
 
 namespace Core.Import;
 
@@ -132,7 +133,7 @@ public static class MixedCsvImporter
     results.Add(new OrderDto(
         parts[1],
         parts[2],
-        false,
+        OrderStatus.Draft,
         new List<OrderLineDto> { orderLine }));
 
     break;

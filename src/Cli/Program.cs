@@ -145,7 +145,7 @@ Console.WriteLine($"Загальна сума: {newOrder.Total:F2}");
 
 newOrder.Confirm();
 
-Console.WriteLine($"Підтверджено: {newOrder.IsConfirmed}");
+Console.WriteLine($"Статус: {newOrder.Status}");
 
 OrderDto dto = newOrder.ToDto();
 Order restoredOrder = Order.FromDto(dto);
@@ -156,7 +156,7 @@ Console.WriteLine($"ID збережено: {restoredOrder.Id == newOrder.Id}");
 Console.WriteLine($"Клієнт: {restoredOrder.CustomerId}");
 Console.WriteLine($"Кількість рядків: {restoredOrder.Lines.Count}");
 Console.WriteLine($"Загальна сума: {restoredOrder.Total:F2}");
-Console.WriteLine($"Підтверджено: {restoredOrder.IsConfirmed}");
+Console.WriteLine($"Статус: {restoredOrder.Status}");
 
 Console.WriteLine();
 Console.WriteLine("=== Сценарій 2: порушення інваріантів ===");
@@ -207,7 +207,174 @@ Console.WriteLine();
 Console.WriteLine("Стан замовлення після невдалих операцій:");
 Console.WriteLine($"Кількість рядків: {newOrder.Lines.Count}");
 Console.WriteLine($"Загальна сума: {newOrder.Total:F2}");
-Console.WriteLine($"Підтверджено: {newOrder.IsConfirmed}");
+Console.WriteLine($"Статус: {newOrder.Status}");
+
+Console.WriteLine();
+Console.WriteLine(new string('-', 60));
+
+var importedOrders = new List<OrderDto>
+{
+    new OrderDto(
+        "O001",
+        "C001",
+        OrderStatus.Draft,
+        new List<OrderLineDto>
+        {
+            new("P001", "Ноутбук", 25000m, 1)
+        }),
+
+    new OrderDto(
+        "O002",
+        "C002",
+        OrderStatus.Draft,
+        new List<OrderLineDto>
+        {
+            new("P002", "Мишка", 800m, 0)
+        }),
+
+    new OrderDto(
+        "O003",
+        "C003",
+        OrderStatus.Draft,
+        new List<OrderLineDto>
+        {
+            new("P003", "Навушники", -100m, 1)
+        })
+};
+
+var importResult = new ImportResult<OrderDto>(
+    importedOrders,
+    new List<string>());
+
+ImportResult<Order> domainResult =
+    OrderImportMapper.ToDomain(importResult);
+
+Console.WriteLine(
+    $"Створено сутностей: {domainResult.Items.Count}");
+
+foreach (Order order in domainResult.Items)
+{
+    Console.WriteLine(
+        $"Order: {order.Id}, клієнт: {order.CustomerId}, сума: {order.Total:F2}");
+}
+
+Console.WriteLine(
+    $"Не пройшли інваріанти: {domainResult.Errors.Count}");
+
+foreach (string error in domainResult.Errors)
+{
+    Console.WriteLine($" ! {error}");
+}
+
+Console.WriteLine();
+Console.WriteLine(new string('-', 60));
+
+Order stockOrder = Order.Create("C005");
+
+stockOrder.AddLine(
+    "P101",
+    "Ноутбук",
+    30000m,
+    2);
+
+var enoughProducts = new List<Product>
+{
+    Product.Create(
+        "P101",
+        "Ноутбук",
+        5)
+};
+
+Console.WriteLine("Перевірка 1: товару достатньо");
+
+try
+{
+    OrderRules.EnsureProductsAvailable(
+        stockOrder,
+        enoughProducts);
+
+    Console.WriteLine(
+        "Перевірка пройдена: товару достатньо");
+}
+catch (InvalidOperationException ex)
+{
+    Console.WriteLine($"Помилка: {ex.Message}");
+}
+
+var notEnoughProducts = new List<Product>
+{
+    Product.Create(
+        "P101",
+        "Ноутбук",
+        1)
+};
+
+Console.WriteLine();
+Console.WriteLine("Перевірка 2: товару недостатньо");
+
+try
+{
+    OrderRules.EnsureProductsAvailable(
+        stockOrder,
+        notEnoughProducts);
+
+    Console.WriteLine(
+        "Перевірка пройдена");
+}
+catch (InvalidOperationException ex)
+{
+    Console.WriteLine($"Помилка: {ex.Message}");
+}
+
+Console.WriteLine();
+Console.WriteLine(new string('-', 60));
+
+Order statusOrder1 = Order.Create("C006");
+
+statusOrder1.AddLine(
+    "P201",
+    "Ноутбук",
+    30000m,
+    1);
+
+Console.WriteLine(
+    $"Початковий стан: {statusOrder1.Status}");
+
+statusOrder1.Confirm();
+
+Console.WriteLine(
+    $"Після Confirm(): {statusOrder1.Status}");
+
+
+Order statusOrder2 = Order.Create("C007");
+
+statusOrder2.AddLine(
+    "P202",
+    "Мишка",
+    800m,
+    1);
+
+Console.WriteLine();
+Console.WriteLine(
+    $"Початковий стан другого замовлення: {statusOrder2.Status}");
+
+statusOrder2.Cancel();
+
+Console.WriteLine(
+    $"Після Cancel(): {statusOrder2.Status}");
+
+try
+{
+    statusOrder2.Confirm();
+
+    Console.WriteLine(
+        "Помилка: заборонений перехід був виконаний");
+}
+catch (InvalidOperationException ex)
+{
+    Console.WriteLine(
+        $"Заборонений перехід: {ex.Message}");
+}
 
 static void TryDo(string title, Action action)
 {
