@@ -444,22 +444,19 @@ Console.WriteLine();
 Console.WriteLine(new string('-', 60));
 Console.WriteLine("=== Лабораторна робота №5 ===");
 
-bool useFile = args.Contains(
-    "--file",
-    StringComparer.OrdinalIgnoreCase);
+IOrderStore baseStore =
+    StoreFactory.Create(args);
 
-string dataPath = Path.Combine(
-    "data",
-    "orders.json");
-
-IOrderStore store = useFile
-    ? new FileOrderStore(dataPath)
-    : new InMemoryOrderStore(SampleData.Orders());
+IOrderStore store =
+    new CachingOrderStore(baseStore);
 
 var service = new OrderService(store);
 
 Console.WriteLine(
-    $"Сховище: {store.GetType().Name}");
+    $"Сховище: {baseStore.GetType().Name}");
+
+Console.WriteLine(
+    $"Декоратор: {store.GetType().Name}");
 
 try
 {
@@ -510,6 +507,61 @@ catch (Exception ex)
 }
 
 Console.WriteLine();
+Console.WriteLine(
+    "Пошук підтверджених замовлень:");
+
+IReadOnlyList<Order> confirmedOrders =
+    service.Search(
+        order => order.Status == OrderStatus.Confirmed);
+
+foreach (Order order in confirmedOrders)
+{
+    Console.WriteLine(
+        $"{order.Id} | " +
+        $"клієнт: {order.CustomerId} | " +
+        $"статус: {order.Status} | " +
+        $"сума: {order.Total:F2}");
+}
+
+Console.WriteLine();
+Console.WriteLine(
+    "Пошук замовлень із сумою понад 100000:");
+
+IReadOnlyList<Order> expensiveOrders =
+    service.Search(
+        order => order.Total > 100000m);
+
+if (expensiveOrders.Count == 0)
+{
+    Console.WriteLine(
+        "Замовлень за заданою умовою не знайдено.");
+}
+else
+{
+    foreach (Order order in expensiveOrders)
+    {
+        Console.WriteLine(
+            $"{order.Id} | " +
+            $"клієнт: {order.CustomerId} | " +
+            $"сума: {order.Total:F2}");
+    }
+}
+
+Console.WriteLine();
+Console.WriteLine(
+    "Перевірка некоректного параметра пошуку:");
+
+try
+{
+    service.Search(null!);
+}
+catch (ArgumentNullException ex)
+{
+    Console.WriteLine(
+        $"Очікувана помилка: {ex.Message}");
+}
+
+Console.WriteLine();
 Console.WriteLine("Сценарій відмови:");
 
 try
@@ -526,7 +578,6 @@ catch (InvalidOperationException ex)
     Console.WriteLine(
         $"Очікувана помилка: {ex.Message}");
 }
-
 
 static void TryDo(
     string title,

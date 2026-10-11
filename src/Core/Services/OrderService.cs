@@ -53,4 +53,15 @@ public sealed class OrderService(IOrderStore store)
 
     public Order? Find(string id) =>
         _store.GetById(id);
+
+    public IReadOnlyList<Order> Search(
+        Func<Order, bool> predicate)
+    {
+        ArgumentNullException.ThrowIfNull(predicate);
+
+        return _store.List()
+            .Where(predicate)
+            .ToList()
+            .AsReadOnly();
+    }
 }
