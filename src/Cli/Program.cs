@@ -1,8 +1,11 @@
 ﻿using System.Text;
 using Core;
+using Core.Abstractions;
 using Core.Dto;
 using Core.Import;
 using Core.Domain;
+using Core.Services;
+using Core.Storage;
 
 Console.OutputEncoding = Encoding.UTF8;
 
@@ -27,9 +30,13 @@ Console.WriteLine($"Примітка збірки : {report.BuildNote}");
 Console.WriteLine(new string('-', 60));
 Console.WriteLine();
 
-string path = args.Length > 0
-    ? args[0]
-    : Path.Combine("data", "sample.csv");
+string? inputPath = args
+    .FirstOrDefault(arg => !arg.Equals(
+        "--file",
+        StringComparison.OrdinalIgnoreCase));
+
+string path = inputPath
+    ?? Path.Combine("data", "sample.csv");
 
 if (!File.Exists(path))
 {
@@ -39,7 +46,9 @@ if (!File.Exists(path))
 
 string extension = Path.GetExtension(path).ToLowerInvariant();
 
-if (Path.GetFileName(path).Equals("mixed.csv", StringComparison.OrdinalIgnoreCase))
+if (Path.GetFileName(path).Equals(
+    "mixed.csv",
+    StringComparison.OrdinalIgnoreCase))
 {
     ImportResult<object> mixedResult = MixedCsvImporter.Load(path);
 
@@ -55,22 +64,24 @@ if (Path.GetFileName(path).Equals("mixed.csv", StringComparison.OrdinalIgnoreCas
                 break;
 
             case OrderDto order:
-    Console.WriteLine(
-        $"Order: {order.Id} {order.CustomerId}");
+                Console.WriteLine(
+                    $"Order: {order.Id} {order.CustomerId}");
 
-    foreach (OrderLineDto line in order.Lines)
-    {
-        Console.WriteLine(
-            $"  {line.ProductId} {line.Name} {line.Price:F2} {line.Quantity}");
-    }
+                foreach (OrderLineDto line in order.Lines)
+                {
+                    Console.WriteLine(
+                        $"  {line.ProductId} {line.Name} " +
+                        $"{line.Price:F2} {line.Quantity}");
+                }
 
-    break;
+                break;
         }
     }
 
     Console.WriteLine();
 
-    Console.WriteLine($"Кількість помилок: {mixedResult.Errors.Count}");
+    Console.WriteLine(
+        $"Кількість помилок: {mixedResult.Errors.Count}");
 
     foreach (string error in mixedResult.Errors)
     {
@@ -91,27 +102,36 @@ ImportResult<ProductDto>? result = extension switch
 
 if (result is null)
 {
-    Console.WriteLine($"Непідтримуваний формат файлу: {extension}");
-    Console.WriteLine("Підтримуються формати: .csv та .json");
+    Console.WriteLine(
+        $"Непідтримуваний формат файлу: {extension}");
+
+    Console.WriteLine(
+        "Підтримуються формати: .csv та .json");
+
     return 1;
 }
 
-Console.WriteLine($"Завантажено записів: {result.Items.Count}");
+Console.WriteLine(
+    $"Завантажено записів: {result.Items.Count}");
 
 foreach (ProductDto p in result.Items.Take(5))
 {
-    Console.WriteLine($" {p.Id,-6} {p.Name,-26} {p.Price,10:F2}");
+    Console.WriteLine(
+        $" {p.Id,-6} {p.Name,-26} {p.Price,10:F2}");
 }
 
 int total = result.Items.Count + result.Errors.Count;
 int skipped = result.Errors.Count;
+
 double errorPercent = total == 0
     ? 0
     : skipped * 100.0 / total;
 
 Console.WriteLine(
-    $"Статистика: усього {total}, прийнято {result.Items.Count}, " +
-    $"пропущено {skipped}, помилки {errorPercent:F1}%");
+    $"Статистика: усього {total}, " +
+    $"прийнято {result.Items.Count}, " +
+    $"пропущено {skipped}, " +
+    $"помилки {errorPercent:F1}%");
 
 foreach (string e in result.Errors)
 {
@@ -140,8 +160,10 @@ newOrder.AddLine(
 
 Console.WriteLine($"Замовлення: {newOrder.Id}");
 Console.WriteLine($"Клієнт: {newOrder.CustomerId}");
-Console.WriteLine($"Кількість рядків: {newOrder.Lines.Count}");
-Console.WriteLine($"Загальна сума: {newOrder.Total:F2}");
+Console.WriteLine(
+    $"Кількість рядків: {newOrder.Lines.Count}");
+Console.WriteLine(
+    $"Загальна сума: {newOrder.Total:F2}");
 
 newOrder.Confirm();
 
@@ -152,14 +174,25 @@ Order restoredOrder = Order.FromDto(dto);
 
 Console.WriteLine();
 Console.WriteLine("Після ToDto / FromDto:");
-Console.WriteLine($"ID збережено: {restoredOrder.Id == newOrder.Id}");
-Console.WriteLine($"Клієнт: {restoredOrder.CustomerId}");
-Console.WriteLine($"Кількість рядків: {restoredOrder.Lines.Count}");
-Console.WriteLine($"Загальна сума: {restoredOrder.Total:F2}");
-Console.WriteLine($"Статус: {restoredOrder.Status}");
+
+Console.WriteLine(
+    $"ID збережено: {restoredOrder.Id == newOrder.Id}");
+
+Console.WriteLine(
+    $"Клієнт: {restoredOrder.CustomerId}");
+
+Console.WriteLine(
+    $"Кількість рядків: {restoredOrder.Lines.Count}");
+
+Console.WriteLine(
+    $"Загальна сума: {restoredOrder.Total:F2}");
+
+Console.WriteLine(
+    $"Статус: {restoredOrder.Status}");
 
 Console.WriteLine();
-Console.WriteLine("=== Сценарій 2: порушення інваріантів ===");
+Console.WriteLine(
+    "=== Сценарій 2: порушення інваріантів ===");
 
 TryDo(
     "додавання рядка після підтвердження",
@@ -204,10 +237,17 @@ TryDo(
     });
 
 Console.WriteLine();
-Console.WriteLine("Стан замовлення після невдалих операцій:");
-Console.WriteLine($"Кількість рядків: {newOrder.Lines.Count}");
-Console.WriteLine($"Загальна сума: {newOrder.Total:F2}");
-Console.WriteLine($"Статус: {newOrder.Status}");
+Console.WriteLine(
+    "Стан замовлення після невдалих операцій:");
+
+Console.WriteLine(
+    $"Кількість рядків: {newOrder.Lines.Count}");
+
+Console.WriteLine(
+    $"Загальна сума: {newOrder.Total:F2}");
+
+Console.WriteLine(
+    $"Статус: {newOrder.Status}");
 
 Console.WriteLine();
 Console.WriteLine(new string('-', 60));
@@ -220,7 +260,11 @@ var importedOrders = new List<OrderDto>
         OrderStatus.Draft,
         new List<OrderLineDto>
         {
-            new("P001", "Ноутбук", 25000m, 1)
+            new(
+                "P001",
+                "Ноутбук",
+                25000m,
+                1)
         }),
 
     new OrderDto(
@@ -229,7 +273,11 @@ var importedOrders = new List<OrderDto>
         OrderStatus.Draft,
         new List<OrderLineDto>
         {
-            new("P002", "Мишка", 800m, 0)
+            new(
+                "P002",
+                "Мишка",
+                800m,
+                0)
         }),
 
     new OrderDto(
@@ -238,7 +286,11 @@ var importedOrders = new List<OrderDto>
         OrderStatus.Draft,
         new List<OrderLineDto>
         {
-            new("P003", "Навушники", -100m, 1)
+            new(
+                "P003",
+                "Навушники",
+                -100m,
+                1)
         })
 };
 
@@ -255,7 +307,9 @@ Console.WriteLine(
 foreach (Order order in domainResult.Items)
 {
     Console.WriteLine(
-        $"Order: {order.Id}, клієнт: {order.CustomerId}, сума: {order.Total:F2}");
+        $"Order: {order.Id}, " +
+        $"клієнт: {order.CustomerId}, " +
+        $"сума: {order.Total:F2}");
 }
 
 Console.WriteLine(
@@ -285,7 +339,8 @@ var enoughProducts = new List<Product>
         5)
 };
 
-Console.WriteLine("Перевірка 1: товару достатньо");
+Console.WriteLine(
+    "Перевірка 1: товару достатньо");
 
 try
 {
@@ -298,7 +353,8 @@ try
 }
 catch (InvalidOperationException ex)
 {
-    Console.WriteLine($"Помилка: {ex.Message}");
+    Console.WriteLine(
+        $"Помилка: {ex.Message}");
 }
 
 var notEnoughProducts = new List<Product>
@@ -310,7 +366,8 @@ var notEnoughProducts = new List<Product>
 };
 
 Console.WriteLine();
-Console.WriteLine("Перевірка 2: товару недостатньо");
+Console.WriteLine(
+    "Перевірка 2: товару недостатньо");
 
 try
 {
@@ -323,7 +380,8 @@ try
 }
 catch (InvalidOperationException ex)
 {
-    Console.WriteLine($"Помилка: {ex.Message}");
+    Console.WriteLine(
+        $"Помилка: {ex.Message}");
 }
 
 Console.WriteLine();
@@ -345,7 +403,6 @@ statusOrder1.Confirm();
 Console.WriteLine(
     $"Після Confirm(): {statusOrder1.Status}");
 
-
 Order statusOrder2 = Order.Create("C007");
 
 statusOrder2.AddLine(
@@ -355,8 +412,10 @@ statusOrder2.AddLine(
     1);
 
 Console.WriteLine();
+
 Console.WriteLine(
-    $"Початковий стан другого замовлення: {statusOrder2.Status}");
+    $"Початковий стан другого замовлення: " +
+    $"{statusOrder2.Status}");
 
 statusOrder2.Cancel();
 
@@ -376,14 +435,110 @@ catch (InvalidOperationException ex)
         $"Заборонений перехід: {ex.Message}");
 }
 
-static void TryDo(string title, Action action)
+
+// ------------------------------------------------------------
+// Лабораторна робота №5
+// ------------------------------------------------------------
+
+Console.WriteLine();
+Console.WriteLine(new string('-', 60));
+Console.WriteLine("=== Лабораторна робота №5 ===");
+
+bool useFile = args.Contains(
+    "--file",
+    StringComparer.OrdinalIgnoreCase);
+
+string dataPath = Path.Combine(
+    "data",
+    "orders.json");
+
+IOrderStore store = useFile
+    ? new FileOrderStore(dataPath)
+    : new InMemoryOrderStore(SampleData.Orders());
+
+var service = new OrderService(store);
+
+Console.WriteLine(
+    $"Сховище: {store.GetType().Name}");
+
+try
+{
+    Order created =
+        service.CreateOrder("C008");
+
+    service.AddLine(
+        created.Id,
+        "P301",
+        "Клавіатура",
+        1500m,
+        1);
+
+    service.Confirm(created.Id);
+
+    Console.WriteLine();
+    Console.WriteLine("Список замовлень:");
+
+    foreach (Order order in service.All())
+    {
+        Console.WriteLine(
+            $"{order.Id} | " +
+            $"клієнт: {order.CustomerId} | " +
+            $"статус: {order.Status} | " +
+            $"сума: {order.Total:F2}");
+    }
+
+    Console.WriteLine();
+    Console.WriteLine(
+        "Пошук створеного замовлення:");
+
+    Order? found =
+        service.Find(created.Id);
+
+    if (found is not null)
+    {
+        Console.WriteLine(
+            $"{found.Id} | " +
+            $"клієнт: {found.CustomerId} | " +
+            $"статус: {found.Status} | " +
+            $"рядків: {found.Lines.Count}");
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine(
+        $"Помилка: {ex.Message}");
+}
+
+Console.WriteLine();
+Console.WriteLine("Сценарій відмови:");
+
+try
+{
+    service.AddLine(
+        "ORDER-NOT-FOUND",
+        "P999",
+        "Тестовий товар",
+        100m,
+        1);
+}
+catch (InvalidOperationException ex)
+{
+    Console.WriteLine(
+        $"Очікувана помилка: {ex.Message}");
+}
+
+
+static void TryDo(
+    string title,
+    Action action)
 {
     try
     {
         action();
 
         Console.WriteLine(
-            $"{title}: виняток НЕ спрацював — інваріант відсутній!");
+            $"{title}: виняток НЕ спрацював — " +
+            "інваріант відсутній!");
     }
     catch (Exception ex)
     {
@@ -391,4 +546,5 @@ static void TryDo(string title, Action action)
             $"{title}: {ex.Message}");
     }
 }
+
 return 0;

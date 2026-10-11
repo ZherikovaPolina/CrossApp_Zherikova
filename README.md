@@ -189,3 +189,27 @@ dotnet run --project src/Cli -f net10.0
 -Ціна товару не може бути від'ємною.
 -До підтвердженого замовлення не можна додавати нові рядки.
 -Порожнє замовлення не можна підтвердити.
+
+## Інтерфейс IOrderStore
+
+Інтерфейс сховища:
+- `IOrderStore`
+
+Реалізації сховища:
+- `InMemoryOrderStore` - зберігання даних у пам'яті;
+- `FileOrderStore` - зберігання даних у файлі `data/orders.json`.
+
+Сервіс:
+- `OrderService`
+
+`OrderService` залежить від інтерфейсу `IOrderStore`, а конкретна реалізація сховища вибирається в `Program.cs`.
+
+Запуск зі сховищем у пам'яті:
+```bash
+dotnet run --project src/Cli/Cli.csproj
+```
+
+Запуск із файловим сховищем:
+```bash
+dotnet run --project src/Cli/Cli.csproj -- --file
+```
