@@ -435,7 +435,6 @@ catch (InvalidOperationException ex)
         $"Заборонений перехід: {ex.Message}");
 }
 
-
 // ------------------------------------------------------------
 // Лабораторна робота №5
 // ------------------------------------------------------------
@@ -447,8 +446,13 @@ Console.WriteLine("=== Лабораторна робота №5 ===");
 IOrderStore baseStore =
     StoreFactory.Create(args);
 
-IOrderStore store =
-    new CachingOrderStore(baseStore);
+bool useCache = args.Contains(
+    "--cache",
+    StringComparer.OrdinalIgnoreCase);
+
+IOrderStore store = useCache
+    ? new CachingOrderStore(baseStore)
+    : baseStore;
 
 var service = new OrderService(store);
 
@@ -456,7 +460,10 @@ Console.WriteLine(
     $"Сховище: {baseStore.GetType().Name}");
 
 Console.WriteLine(
-    $"Декоратор: {store.GetType().Name}");
+    $"Кешування: {(useCache ? "увімкнено" : "вимкнено")}");
+
+Console.WriteLine(
+    $"Робоче сховище: {store.GetType().Name}");
 
 try
 {
