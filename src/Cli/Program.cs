@@ -6,6 +6,7 @@ using Core.Import;
 using Core.Domain;
 using Core.Services;
 using Core.Storage;
+using Core.Events;
 
 Console.OutputEncoding = Encoding.UTF8;
 
@@ -434,7 +435,6 @@ catch (InvalidOperationException ex)
     Console.WriteLine(
         $"Заборонений перехід: {ex.Message}");
 }
-
 // ------------------------------------------------------------
 // Лабораторна робота №5
 // ------------------------------------------------------------
@@ -455,9 +455,6 @@ IOrderStore store = useCache
     : baseStore;
 
 var service = new OrderService(store);
-
-Console.WriteLine(
-    $"Сховище: {baseStore.GetType().Name}");
 
 Console.WriteLine(
     $"Кешування: {(useCache ? "увімкнено" : "вимкнено")}");
@@ -584,6 +581,139 @@ catch (InvalidOperationException ex)
 {
     Console.WriteLine(
         $"Очікувана помилка: {ex.Message}");
+}
+
+// ------------------------------------------------------------
+// Лабораторна робота №6
+// ------------------------------------------------------------
+
+Console.WriteLine();
+Console.WriteLine(new string('-', 60));
+Console.WriteLine("=== Лабораторна робота №6 ===");
+
+IOrderStore lab6Store =
+    new InMemoryOrderStore();
+
+var lab6Service =
+    new OrderService(lab6Store);
+
+var logPath = Path.Combine(
+    AppContext.BaseDirectory,
+    "logs",
+    "app.log");
+
+Directory.CreateDirectory(
+    Path.GetDirectoryName(logPath)!);
+
+void OnOrderChanged(
+    object? sender,
+    OrderChangedEventArgs e)
+{
+    var line =
+        $"{e.At:HH:mm:ss} " +
+        $"{e.Kind,-14} " +
+        $"{e.OrderId} | " +
+        $"рядків: {e.LinesCount} | " +
+        $"сума: {e.Total:F2}";
+
+    try
+    {
+        Console.WriteLine(line);
+
+        File.AppendAllText(
+            logPath,
+            line + Environment.NewLine);
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine(
+            $"Помилка журналювання: {ex.Message}");
+    }
+}
+
+lab6Service.Changed += OnOrderChanged;
+
+int changes = 0;
+
+lab6Service.Changed += (_, _) => changes++;
+
+Console.WriteLine();
+Console.WriteLine(
+    "Події зміни замовлення:");
+
+Order lab6Order =
+    lab6Service.CreateOrder("C-LAB6");
+
+lab6Service.AddLine(
+    lab6Order.Id,
+    "P601",
+    "Навушники",
+    2000m,
+    1);
+
+lab6Service.Confirm(
+    lab6Order.Id);
+
+Console.WriteLine(
+    $"Подій отримано: {changes}");
+
+Console.WriteLine();
+Console.WriteLine(
+    "Перевірка відписки:");
+
+lab6Service.Changed -= OnOrderChanged;
+
+Order silentOrder =
+    lab6Service.CreateOrder("C-SILENT");
+
+Console.WriteLine(
+    $"Подій отримано: {changes}");
+
+Console.WriteLine(
+    $"Нове замовлення створено: {silentOrder.Id}");
+
+Console.WriteLine();
+Console.WriteLine(
+    "Сценарій відмови:");
+
+int changesBeforeFailure =
+    changes;
+
+try
+{
+    lab6Service.AddLine(
+        "ORDER-NOT-FOUND",
+        "P999",
+        "Тестовий товар",
+        100m,
+        1);
+}
+catch (InvalidOperationException ex)
+{
+    Console.WriteLine(
+        $"Очікувана помилка: {ex.Message}");
+}
+
+Console.WriteLine(
+    $"Подій до помилки: {changesBeforeFailure}");
+
+Console.WriteLine(
+    $"Подій після помилки: {changes}");
+
+Console.WriteLine();
+Console.WriteLine(
+    "Пошук через Func<Order, bool>:");
+
+IReadOnlyList<Order> foundOrders =
+    lab6Service.FindAll(
+        order => order.Total < 1000m);
+
+foreach (Order order in foundOrders)
+{
+    Console.WriteLine(
+        $"{order.Id} | " +
+        $"клієнт: {order.CustomerId} | " +
+        $"сума: {order.Total:F2}");
 }
 
 static void TryDo(
