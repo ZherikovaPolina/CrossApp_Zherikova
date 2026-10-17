@@ -1,13 +1,18 @@
 using Core.Abstractions;
 using Core.Domain;
 using Core.Events;
+using Core.Notifications;
 
 namespace Core.Services;
 
-public sealed class OrderService(IOrderStore store)
+public sealed class OrderService(
+    IOrderStore store,
+    INotificationSink? sink = null)
 {
     private readonly IOrderStore _store =
         store ?? throw new ArgumentNullException(nameof(store));
+
+    private readonly INotificationSink? _sink = sink;
 
     public event EventHandler<OrderChangedEventArgs>? Changed;
 
@@ -15,13 +20,21 @@ public sealed class OrderService(IOrderStore store)
         Order order,
         OrderChangeKind kind)
     {
-        Changed?.Invoke(
-            this,
+        var eventArgs =
             new OrderChangedEventArgs(
                 order.Id,
                 kind,
                 order.Lines.Count,
-                order.Total));
+                order.Total);
+
+        Changed?.Invoke(
+            this,
+            eventArgs);
+
+        _sink?.Notify(
+            $"{kind}: замовлення {order.Id}, " +
+            $"рядків: {order.Lines.Count}, " +
+            $"сума: {order.Total:F2}");
     }
 
     public Order CreateOrder(string customerId)

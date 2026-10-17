@@ -7,6 +7,8 @@ using Core.Domain;
 using Core.Services;
 using Core.Storage;
 using Core.Events;
+using Cli.Notifications;
+using Core.Notifications;
 
 Console.OutputEncoding = Encoding.UTF8;
 
@@ -715,6 +717,89 @@ foreach (Order order in foundOrders)
         $"клієнт: {order.CustomerId} | " +
         $"сума: {order.Total:F2}");
 }
+
+Console.WriteLine();
+Console.WriteLine(
+    "Додаткове завдання №1 — INotificationSink:");
+
+var sinkLogPath = Path.Combine(
+    AppContext.BaseDirectory,
+    "logs",
+    "sink.log");
+
+INotificationSink consoleSink =
+    new ConsoleSink();
+
+INotificationSink fileSink =
+    new FileSink(sinkLogPath);
+
+IOrderStore consoleStore =
+    new InMemoryOrderStore();
+
+var consoleSinkService =
+    new OrderService(
+        consoleStore,
+        consoleSink);
+
+Console.WriteLine(
+    "ConsoleSink:");
+
+Order consoleOrder =
+    consoleSinkService.CreateOrder(
+        "C-SINK-CONSOLE");
+
+consoleSinkService.AddLine(
+    consoleOrder.Id,
+    "P701",
+    "Вебкамера",
+    1800m,
+    1);
+
+IOrderStore fileStore =
+    new InMemoryOrderStore();
+
+var fileSinkService =
+    new OrderService(
+        fileStore,
+        fileSink);
+
+Console.WriteLine();
+Console.WriteLine(
+    "FileSink:");
+
+Order fileOrder =
+    fileSinkService.CreateOrder(
+        "C-SINK-FILE");
+
+fileSinkService.AddLine(
+    fileOrder.Id,
+    "P702",
+    "Мікрофон",
+    2500m,
+    1);
+
+Console.WriteLine(
+    $"Повідомлення записано у: {sinkLogPath}");
+
+Console.WriteLine();
+Console.WriteLine(
+    "Додаткове завдання №2 — Action<string>:");
+
+var skippedMessages =
+    new List<string>();
+
+ProductCsvImporter.Load(
+    path,
+    message =>
+    {
+        skippedMessages.Add(message);
+
+        Console.WriteLine(
+            $"Пропущено: {message}");
+    });
+
+Console.WriteLine(
+    $"Усього пропущено рядків: {skippedMessages.Count}");
 
 static void TryDo(
     string title,
