@@ -9,6 +9,7 @@ using Core.Storage;
 using Core.Events;
 using Cli.Notifications;
 using Core.Notifications;
+using Core.Reports;
 
 Console.OutputEncoding = Encoding.UTF8;
 
@@ -33,21 +34,39 @@ Console.WriteLine($"Примітка збірки : {report.BuildNote}");
 Console.WriteLine(new string('-', 60));
 Console.WriteLine();
 
+string? reportCommand = args
+    .FirstOrDefault(arg =>
+        !arg.StartsWith("--") &&
+        arg.StartsWith(
+            "report-",
+            StringComparison.OrdinalIgnoreCase));
+
+if (reportCommand is not null)
+{
+    RunLab7Report(reportCommand);
+    return 0;
+}
+
 string? inputPath = args
-    .FirstOrDefault(arg => !arg.Equals(
-        "--file",
-        StringComparison.OrdinalIgnoreCase));
+    .FirstOrDefault(arg =>
+        !arg.StartsWith("--") &&
+        !arg.StartsWith(
+            "report-",
+            StringComparison.OrdinalIgnoreCase));
 
 string path = inputPath
     ?? Path.Combine("data", "sample.csv");
 
 if (!File.Exists(path))
 {
-    Console.WriteLine($"Файл не знайдено: {Path.GetFullPath(path)}");
+    Console.WriteLine(
+        $"Файл не знайдено: {Path.GetFullPath(path)}");
+
     return 1;
 }
 
-string extension = Path.GetExtension(path).ToLowerInvariant();
+string extension =
+    Path.GetExtension(path).ToLowerInvariant();
 
 if (Path.GetFileName(path).Equals(
     "mixed.csv",
@@ -80,18 +99,6 @@ if (Path.GetFileName(path).Equals(
                 break;
         }
     }
-
-    Console.WriteLine();
-
-    Console.WriteLine(
-        $"Кількість помилок: {mixedResult.Errors.Count}");
-
-    foreach (string error in mixedResult.Errors)
-    {
-        Console.WriteLine($" ! {error}");
-    }
-
-    return 0;
 }
 
 ImportResult<ProductDto>? result = extension switch
@@ -800,6 +807,199 @@ ProductCsvImporter.Load(
 
 Console.WriteLine(
     $"Усього пропущено рядків: {skippedMessages.Count}");
+
+// ------------------------------------------------------------
+// Лабораторна робота №7
+// ------------------------------------------------------------
+
+Console.WriteLine();
+Console.WriteLine(new string('=', 60));
+Console.WriteLine("=== Лабораторна робота №7 ===");
+Console.WriteLine("Звіти через LINQ");
+Console.WriteLine(new string('=', 60));
+
+Console.WriteLine();
+Console.WriteLine(
+    "Демонстрація відкладеного виконання:");
+
+var lab7Store =
+    new InMemoryOrderStore();
+
+var lab7Service =
+    new OrderService(lab7Store);
+
+Order lab7Order1 =
+    lab7Service.CreateOrder("C-LAB7-1");
+
+lab7Service.AddLine(
+    lab7Order1.Id,
+    "P801",
+    "Ноутбук",
+    25000m,
+    1);
+
+Order lab7Order2 =
+    lab7Service.CreateOrder("C-LAB7-2");
+
+lab7Service.AddLine(
+    lab7Order2.Id,
+    "P802",
+    "Мишка",
+    800m,
+    1);
+
+var source =
+    lab7Service.All().ToList();
+
+var query =
+    ReportService.OrdersBelowTotal(
+        source,
+        1000m);
+
+Console.WriteLine(
+    $"Замовлень до змін: {query.Count()}");
+
+Order addedOrder =
+    Order.Create("C-LAB7-3");
+
+addedOrder.AddLine(
+    "P803",
+    "Кабель",
+    500m,
+    1);
+
+source.Add(addedOrder);
+
+Console.WriteLine(
+    $"Замовлень після змін: {query.Count()}");
+
+var snapshot =
+    query.ToList();
+
+source.Clear();
+
+Console.WriteLine(
+    $"У знімку залишилось: {snapshot.Count}");
+
+Console.WriteLine(new string('=', 60));
+
+static void RunLab7Report(string command)
+{
+    IReadOnlyList<Order> orders =
+        SampleData.Orders();
+
+    Console.WriteLine();
+    Console.WriteLine(new string('=', 60));
+    Console.WriteLine("=== Лабораторна робота №7 ===");
+    Console.WriteLine("Звіти через LINQ");
+    Console.WriteLine(new string('=', 60));
+
+    switch (command.ToLowerInvariant())
+    {
+        case "report-top":
+        {
+            Console.WriteLine();
+            Console.WriteLine(
+                "Топ-5 клієнтів за загальною сумою замовлень:");
+
+            IReadOnlyList<CustomerSummary> customers =
+                ReportService.TopCustomersByTotal(
+                    orders,
+                    5);
+
+            foreach (CustomerSummary customer in customers)
+            {
+                Console.WriteLine(
+                    $"{customer.CustomerId,-10} | " +
+                    $"замовлень: {customer.OrdersCount,2} | " +
+                    $"сума: {customer.Total,10:F2}");
+            }
+
+            break;
+        }
+
+        case "report-expensive":
+        {
+            const decimal threshold = 5000m;
+
+            Console.WriteLine();
+            Console.WriteLine(
+                $"Замовлення дорожче {threshold:F2}:");
+
+            IReadOnlyList<OrderReportLine> expensive =
+                ReportService.ExpensiveOrders(
+                    orders,
+                    threshold);
+
+            foreach (OrderReportLine order in expensive)
+            {
+                Console.WriteLine(
+                    $"{order.OrderId} | " +
+                    $"клієнт: {order.CustomerId,-6} | " +
+                    $"сума: {order.Total,10:F2}");
+            }
+
+            break;
+        }
+
+        case "report-groups":
+        {
+            Console.WriteLine();
+            Console.WriteLine(
+                "Групування замовлень за статусом:");
+
+            IReadOnlyList<GroupSummary> groups =
+                ReportService.ByStatus(orders);
+
+            foreach (GroupSummary group in groups)
+            {
+                Console.WriteLine(
+                    $"{group.Status,-10} | " +
+                    $"замовлень: {group.Count,2} | " +
+                    $"сума: {group.Total,10:F2}");
+            }
+
+            break;
+        }
+
+        case "report-sum":
+        {
+            Console.WriteLine();
+            Console.WriteLine(
+                "Загальна статистика замовлень:");
+
+            var totals =
+                ReportService.Totals(orders);
+
+            Console.WriteLine(
+                $"Кількість замовлень: {totals.Items}");
+
+            Console.WriteLine(
+                $"Загальна сума: {totals.Total:F2}");
+
+            Console.WriteLine(
+                $"Середній чек: {totals.Average:F2}");
+
+            Console.WriteLine(
+                $"Максимальне замовлення: {totals.Max:F2}");
+
+            break;
+        }
+
+        default:
+        {
+            Console.WriteLine();
+            Console.WriteLine("Доступні команди:");
+            Console.WriteLine(
+                "report-top | report-expensive | " +
+                "report-groups | report-sum");
+
+            break;
+        }
+    }
+
+    Console.WriteLine(new string('=', 60));
+}
 
 static void TryDo(
     string title,
