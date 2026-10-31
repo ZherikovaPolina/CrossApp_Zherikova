@@ -10,6 +10,7 @@ using Core.Events;
 using Cli.Notifications;
 using Core.Notifications;
 using Core.Reports;
+using System.Diagnostics;
 
 Console.OutputEncoding = Encoding.UTF8;
 
@@ -808,6 +809,7 @@ ProductCsvImporter.Load(
 Console.WriteLine(
     $"Усього пропущено рядків: {skippedMessages.Count}");
 
+
 // ------------------------------------------------------------
 // Лабораторна робота №7
 // ------------------------------------------------------------
@@ -815,6 +817,7 @@ Console.WriteLine(
 Console.WriteLine();
 Console.WriteLine(new string('=', 60));
 Console.WriteLine("=== Лабораторна робота №7 ===");
+Console.WriteLine("ОСНОВНА ЧАСТИНА");
 Console.WriteLine("Звіти через LINQ");
 Console.WriteLine(new string('=', 60));
 
@@ -891,13 +894,19 @@ static void RunLab7Report(string command)
     Console.WriteLine();
     Console.WriteLine(new string('=', 60));
     Console.WriteLine("=== Лабораторна робота №7 ===");
-    Console.WriteLine("Звіти через LINQ");
-    Console.WriteLine(new string('=', 60));
 
     switch (command.ToLowerInvariant())
     {
+        // ----------------------------------------------------
+        // ОСНОВНА ЧАСТИНА
+        // ----------------------------------------------------
+
         case "report-top":
         {
+            Console.WriteLine("ОСНОВНА ЧАСТИНА");
+            Console.WriteLine("Звіти через LINQ");
+            Console.WriteLine(new string('=', 60));
+
             Console.WriteLine();
             Console.WriteLine(
                 "Топ-5 клієнтів за загальною сумою замовлень:");
@@ -910,7 +919,7 @@ static void RunLab7Report(string command)
             foreach (CustomerSummary customer in customers)
             {
                 Console.WriteLine(
-                    $"{customer.CustomerId,-10} | " +
+                    $"{customer.CustomerId,-12} | " +
                     $"замовлень: {customer.OrdersCount,2} | " +
                     $"сума: {customer.Total,10:F2}");
             }
@@ -920,6 +929,10 @@ static void RunLab7Report(string command)
 
         case "report-expensive":
         {
+            Console.WriteLine("ОСНОВНА ЧАСТИНА");
+            Console.WriteLine("Звіти через LINQ");
+            Console.WriteLine(new string('=', 60));
+
             const decimal threshold = 5000m;
 
             Console.WriteLine();
@@ -935,7 +948,7 @@ static void RunLab7Report(string command)
             {
                 Console.WriteLine(
                     $"{order.OrderId} | " +
-                    $"клієнт: {order.CustomerId,-6} | " +
+                    $"клієнт: {order.CustomerId,-12} | " +
                     $"сума: {order.Total,10:F2}");
             }
 
@@ -944,6 +957,10 @@ static void RunLab7Report(string command)
 
         case "report-groups":
         {
+            Console.WriteLine("ОСНОВНА ЧАСТИНА");
+            Console.WriteLine("Звіти через LINQ");
+            Console.WriteLine(new string('=', 60));
+
             Console.WriteLine();
             Console.WriteLine(
                 "Групування замовлень за статусом:");
@@ -964,6 +981,10 @@ static void RunLab7Report(string command)
 
         case "report-sum":
         {
+            Console.WriteLine("ОСНОВНА ЧАСТИНА");
+            Console.WriteLine("Звіти через LINQ");
+            Console.WriteLine(new string('=', 60));
+
             Console.WriteLine();
             Console.WriteLine(
                 "Загальна статистика замовлень:");
@@ -986,13 +1007,270 @@ static void RunLab7Report(string command)
             break;
         }
 
+        // ----------------------------------------------------
+        // ДОДАТКОВЕ ЗАВДАННЯ №1
+        // GroupJoin двох колекцій
+        // ----------------------------------------------------
+
+        case "report-products":
+        {
+            Console.WriteLine("ДОДАТКОВЕ ЗАВДАННЯ №1");
+            Console.WriteLine(
+                "GroupJoin: товари × рядки замовлень");
+            Console.WriteLine(new string('=', 60));
+
+            IReadOnlyList<Product> products =
+                SampleData.Products();
+
+            IReadOnlyList<OrderLine> orderLines =
+                orders
+                    .SelectMany(order => order.Lines)
+                    .ToList();
+
+            IReadOnlyList<ProductOrdersSummary> summaries =
+                ReportService.ProductOrders(
+                    products,
+                    orderLines);
+
+            Console.WriteLine();
+            Console.WriteLine(
+                "Зведення товарів і рядків замовлень:");
+
+            foreach (ProductOrdersSummary summary in summaries)
+            {
+                Console.WriteLine(
+                    $"{summary.ProductId} | " +
+                    $"{summary.ProductName,-12} | " +
+                    $"на складі: {summary.AvailableQuantity,2} | " +
+                    $"замовлено: {summary.OrderedQuantity,2} | " +
+                    $"сума: {summary.OrderedTotal,10:F2}");
+            }
+
+            break;
+        }
+
+        // ----------------------------------------------------
+        // ДОДАТКОВЕ ЗАВДАННЯ №2
+        // Власний метод-розширення TopBy<T>
+        // ----------------------------------------------------
+
+        case "report-top-products":
+        {
+            Console.WriteLine("ДОДАТКОВЕ ЗАВДАННЯ №2");
+            Console.WriteLine(
+                "Власний метод-розширення TopBy<T>");
+            Console.WriteLine(new string('=', 60));
+
+            IReadOnlyList<Product> products =
+                SampleData.Products();
+
+            IReadOnlyList<OrderLine> orderLines =
+                orders
+                    .SelectMany(order => order.Lines)
+                    .ToList();
+
+            IReadOnlyList<ProductOrdersSummary> summaries =
+                ReportService.ProductOrders(
+                    products,
+                    orderLines);
+
+            IReadOnlyList<ProductOrdersSummary> topProducts =
+                ReportService.TopProducts(
+                    summaries,
+                    5);
+
+            Console.WriteLine();
+            Console.WriteLine(
+                "Топ-5 товарів за сумою замовлень:");
+
+            foreach (ProductOrdersSummary product in topProducts)
+            {
+                Console.WriteLine(
+                    $"{product.ProductId} | " +
+                    $"{product.ProductName,-12} | " +
+                    $"замовлено: {product.OrderedQuantity,2} | " +
+                    $"сума: {product.OrderedTotal,10:F2}");
+            }
+
+            break;
+        }
+
+        // ----------------------------------------------------
+        // ДОДАТКОВЕ ЗАВДАННЯ №3
+        // LINQ у синтаксисі запитів
+        // from ... group ... into ...
+        // ----------------------------------------------------
+
+        case "report-query":
+        {
+            Console.WriteLine("ДОДАТКОВЕ ЗАВДАННЯ №3");
+            Console.WriteLine(
+                "LINQ у синтаксисі запитів");
+            Console.WriteLine(new string('=', 60));
+
+            Console.WriteLine();
+            Console.WriteLine(
+                "Групування замовлень за статусом:");
+            Console.WriteLine(
+                "(from ... group ... into ...)");
+
+            IReadOnlyList<GroupSummary> groups =
+                ReportService.ByStatusQuerySyntax(
+                    orders);
+
+            foreach (GroupSummary group in groups)
+            {
+                Console.WriteLine(
+                    $"{group.Status,-10} | " +
+                    $"замовлень: {group.Count,2} | " +
+                    $"сума: {group.Total,10:F2}");
+            }
+
+            break;
+        }
+
+        // ----------------------------------------------------
+// ДОДАТКОВЕ ЗАВДАННЯ №4
+// Stopwatch: 100 000 записів
+// ToList у середині ланцюжка і без нього
+// ----------------------------------------------------
+
+case "report-performance":
+{
+    Console.WriteLine("ДОДАТКОВЕ ЗАВДАННЯ №4");
+    Console.WriteLine(
+        "Stopwatch: порівняння LINQ на 100 000 записів");
+    Console.WriteLine(new string('=', 60));
+
+    const int count = 100_000;
+
+    var random = new Random(5);
+
+    List<PerformanceOrder> testData =
+        Enumerable
+            .Range(1, count)
+            .Select(index => new PerformanceOrder(
+                $"ORDER-{index:D6}",
+                $"CUSTOMER-{random.Next(1, 1001):D4}",
+                random.Next(100, 50001)))
+            .ToList();
+
+    Console.WriteLine();
+    Console.WriteLine(
+        $"Кількість згенерованих записів: {testData.Count}");
+
+    var stopwatch = Stopwatch.StartNew();
+
+    var withToList =
+        testData
+            .Where(order => order.Total > 5000m)
+            .ToList()
+            .GroupBy(order => order.CustomerId)
+            .Select(group => new
+            {
+                CustomerId = group.Key,
+                Total = group.Sum(order => order.Total)
+            })
+            .OrderByDescending(result => result.Total)
+            .Take(5)
+            .ToList();
+
+    stopwatch.Stop();
+
+    long withToListTicks =
+        stopwatch.ElapsedTicks;
+
+    double withToListMs =
+        stopwatch.Elapsed.TotalMilliseconds;
+
+    stopwatch.Restart();
+
+    var withoutToList =
+        testData
+            .Where(order => order.Total > 5000m)
+            .GroupBy(order => order.CustomerId)
+            .Select(group => new
+            {
+                CustomerId = group.Key,
+                Total = group.Sum(order => order.Total)
+            })
+            .OrderByDescending(result => result.Total)
+            .Take(5)
+            .ToList();
+
+    stopwatch.Stop();
+
+    long withoutToListTicks =
+        stopwatch.ElapsedTicks;
+
+    double withoutToListMs =
+        stopwatch.Elapsed.TotalMilliseconds;
+
+    Console.WriteLine();
+    Console.WriteLine("Варіант 1 — ToList у середині ланцюжка:");
+    Console.WriteLine(
+        $"Час: {withToListMs:F3} мс " +
+        $"({withToListTicks} ticks)");
+
+    Console.WriteLine();
+    Console.WriteLine("Варіант 2 — без проміжного ToList:");
+    Console.WriteLine(
+        $"Час: {withoutToListMs:F3} мс " +
+        $"({withoutToListTicks} ticks)");
+
+    Console.WriteLine();
+    Console.WriteLine(
+        $"Кількість результатів: " +
+        $"{withToList.Count} / {withoutToList.Count}");
+
+    Console.WriteLine();
+    Console.WriteLine(
+        "Топ-5 клієнтів:");
+
+    foreach (var result in withoutToList)
+    {
+        Console.WriteLine(
+            $"{result.CustomerId} | " +
+            $"сума: {result.Total:F2}");
+    }
+
+    break;
+}
+
+        // ----------------------------------------------------
+        // СПИСОК КОМАНД
+        // ----------------------------------------------------
+
         default:
         {
+            Console.WriteLine("Доступні команди");
+            Console.WriteLine(new string('=', 60));
+
             Console.WriteLine();
-            Console.WriteLine("Доступні команди:");
+            Console.WriteLine("Основна частина:");
             Console.WriteLine(
                 "report-top | report-expensive | " +
                 "report-groups | report-sum");
+
+            Console.WriteLine();
+            Console.WriteLine("Додаткове завдання №1:");
+            Console.WriteLine(
+                "report-products");
+
+            Console.WriteLine();
+            Console.WriteLine("Додаткове завдання №2:");
+            Console.WriteLine(
+                "report-top-products");
+
+            Console.WriteLine();
+            Console.WriteLine("Додаткове завдання №3:");
+            Console.WriteLine(
+                "report-query");
+
+            Console.WriteLine();
+Console.WriteLine("Додаткове завдання №4:");
+Console.WriteLine(
+    "report-performance");
 
             break;
         }

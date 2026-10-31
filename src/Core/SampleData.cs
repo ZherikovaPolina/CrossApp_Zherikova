@@ -141,6 +141,31 @@ public static class SampleData
         orders.Add(order15);
 
         return orders.AsReadOnly();
+    }       
+
+    public static IReadOnlyList<Product> Products()
+    {
+        var products = new List<Product>
+        {
+            Product.Create("PRODUCT-001", "Ноутбук", 5),
+            Product.Create("PRODUCT-002", "Мишка", 20),
+            Product.Create("PRODUCT-003", "Монітор", 8),
+            Product.Create("PRODUCT-004", "Клавіатура", 15),
+            Product.Create("PRODUCT-005", "Навушники", 12),
+            Product.Create("PRODUCT-006", "Планшет", 6),
+            Product.Create("PRODUCT-007", "Кабель", 30),
+            Product.Create("PRODUCT-008", "Вебкамера", 10),
+            Product.Create("PRODUCT-009", "Принтер", 4),
+            Product.Create("PRODUCT-010", "Флешка", 25),
+            Product.Create("PRODUCT-011", "Смартфон", 7),
+            Product.Create("PRODUCT-012", "Колонки", 9),
+            Product.Create("PRODUCT-013", "Мікрофон", 11),
+            Product.Create("PRODUCT-014", "SSD", 14),
+            Product.Create("PRODUCT-015", "Роутер", 8),
+            Product.Create("PRODUCT-016", "Геймпад", 10)
+        };
+
+        return products.AsReadOnly();
     }
 
     private static Order CreateOrder(

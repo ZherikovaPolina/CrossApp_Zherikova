@@ -1,4 +1,5 @@
 using Core.Domain;
+using Core.Extensions;
 
 namespace Core.Reports;
 
@@ -15,12 +16,12 @@ public static class ReportService
                 group.Key,
                 group.Count(),
                 group.Sum(order => order.Total)))
-            .OrderByDescending(customer => customer.Total)
-            .ThenBy(
+            .OrderBy(
                 customer => customer.CustomerId,
                 StringComparer.Ordinal)
-            .Take(n)
-            .ToList();
+            .TopBy(
+                customer => customer.Total,
+                n);
 
     public static IReadOnlyList<OrderReportLine> ExpensiveOrders(
         IEnumerable<Order> source,
@@ -49,6 +50,24 @@ public static class ReportService
             .ThenBy(summary => summary.Status)
             .ToList();
 
+    public static IReadOnlyList<GroupSummary> ByStatusQuerySyntax(
+        IEnumerable<Order> source)
+    {
+        var query =
+            from order in source
+            group order by order.Status into statusGroup
+            let total =
+                statusGroup.Sum(order => order.Total)
+            orderby total descending,
+                statusGroup.Key
+            select new GroupSummary(
+                statusGroup.Key,
+                statusGroup.Count(),
+                total);
+
+        return query.ToList();
+    }
+
     public static IEnumerable<Order> OrdersBelowTotal(
         IEnumerable<Order> source,
         decimal threshold) =>
@@ -71,4 +90,38 @@ public static class ReportService
                 list.Average(order => order.Total),
                 list.Max(order => order.Total));
     }
+
+    public static IReadOnlyList<ProductOrdersSummary> ProductOrders(
+        IEnumerable<Product> products,
+        IEnumerable<OrderLine> orderLines) =>
+        products
+            .GroupJoin(
+                orderLines,
+                product => product.Id,
+                line => line.ProductId,
+                (product, lines) => new ProductOrdersSummary(
+                    product.Id,
+                    product.Name,
+                    product.AvailableQuantity,
+                    lines.Sum(line => line.Quantity),
+                    lines.Sum(line =>
+                        line.Price * line.Quantity)),
+                StringComparer.Ordinal)
+            .OrderByDescending(
+                summary => summary.OrderedTotal)
+            .ThenBy(
+                summary => summary.ProductId,
+                StringComparer.Ordinal)
+            .ToList();
+
+    public static IReadOnlyList<ProductOrdersSummary> TopProducts(
+        IEnumerable<ProductOrdersSummary> source,
+        int n) =>
+        source
+            .OrderBy(
+                product => product.ProductId,
+                StringComparer.Ordinal)
+            .TopBy(
+                product => product.OrderedTotal,
+                n);
 }
