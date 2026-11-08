@@ -1,3 +1,6 @@
+
+using Core;
+
 namespace Core.Domain;
 
 public static class OrderRules
@@ -15,11 +18,11 @@ public static class OrderRules
                 p => p.Id == line.ProductId);
 
             if (product is null)
-                throw new InvalidOperationException(
+                throw new DomainException(
                     $"Товар {line.ProductId} не знайдено");
 
             if (product.AvailableQuantity < line.Quantity)
-                throw new InvalidOperationException(
+                throw new DomainException(
                     $"Недостатньо товару {product.Name}. " +
                     $"Потрібно: {line.Quantity}, доступно: {product.AvailableQuantity}");
         }

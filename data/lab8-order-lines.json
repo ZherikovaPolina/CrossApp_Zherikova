@@ -1,0 +1,19 @@
+[
+  {"ProductId":"P801","Name":"Ноутбук","Price":25000,"Quantity":1},
+  {"ProductId":"P802","Name":"Мишка","Price":800,"Quantity":2},
+  {"ProductId":"P803","Name":"Клавіатура","Price":1500,"Quantity":1},
+  {"ProductId":"P804","Name":"Монітор","Price":7000,"Quantity":1},
+  {"ProductId":"P805","Name":"Навушники","Price":2000,"Quantity":1},
+  {"ProductId":"P806","Name":"Вебкамера","Price":1800,"Quantity":1},
+  {"ProductId":"P807","Name":"Мікрофон","Price":2500,"Quantity":1},
+  {"ProductId":"P808","Name":"Кабель HDMI","Price":300,"Quantity":2},
+  {"ProductId":"P809","Name":"USB-хаб","Price":900,"Quantity":1},
+  {"ProductId":"P810","Name":"SSD","Price":3200,"Quantity":1},
+  {"ProductId":"P811","Name":"Флешка","Price":450,"Quantity":2},
+  {"ProductId":"P812","Name":"Роутер","Price":2100,"Quantity":1},
+  {"ProductId":"P813","Name":"Колонки","Price":1600,"Quantity":1},
+  {"ProductId":"P814","Name":"Принтер","Price":5500,"Quantity":1},
+  {"ProductId":"P815","Name":"Папір","Price":250,"Quantity":3},
+  {"ProductId":"P816","Name":"Килимок","Price":350,"Quantity":1},
+  {"ProductId":"P817","Name":"Зарядний пристрій","Price":1200,"Quantity":1}
+]

@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Text.Json;
 using Core;
 using Core.Abstractions;
 using Core.Dto;
@@ -13,6 +14,12 @@ using Core.Reports;
 using System.Diagnostics;
 
 Console.OutputEncoding = Encoding.UTF8;
+
+if (args.Contains("--file", StringComparer.OrdinalIgnoreCase))
+{
+    await RunLab8Async();
+    return 0;
+}
 
 EnvironmentReport report = EnvironmentInfo.Collect();
 
@@ -1263,6 +1270,94 @@ Console.WriteLine(
     }
 
     Console.WriteLine(new string('=', 60));
+}
+
+
+ // ------------------------------------------------------------
+ // Лабораторна робота №8
+ // Асинхронний імпорт, CancellationToken, Ctrl+C
+ // ------------------------------------------------------------
+
+static async Task RunLab8Async()
+{
+    Console.WriteLine();
+    Console.WriteLine(new string('=', 60));
+    Console.WriteLine("=== Лабораторна робота №8 ===");
+    Console.WriteLine("ОСНОВНА ЧАСТИНА");
+    Console.WriteLine("Асинхронний імпорт рядків замовлення");
+    Console.WriteLine(new string('=', 60));
+
+    string dataPath = Path.Combine(
+        "data",
+        "lab8-order-lines.json");
+
+    IOrderStore lab8Store = new InMemoryOrderStore();
+
+    var lab8Service = new OrderService(lab8Store);
+
+    Order lab8Order = lab8Service.CreateOrder("C-LAB8");
+
+    int changedCount = 0;
+
+    lab8Service.Changed += (_, e) =>
+    {
+        if (e.Kind == OrderChangeKind.LineAdded)
+        {
+            changedCount++;
+        }
+    };
+
+    using var cts = new CancellationTokenSource();
+
+    //cts.CancelAfter(TimeSpan.Zero);
+
+    ConsoleCancelEventHandler cancelHandler = (_, e) =>
+    {
+        e.Cancel = true;
+        cts.Cancel();
+    };
+
+    Console.CancelKeyPress += cancelHandler;
+
+    try
+    {
+        Console.WriteLine();
+        Console.WriteLine($"Файл імпорту: {dataPath}");
+        Console.WriteLine($"Замовлення: {lab8Order.Id}");
+        Console.WriteLine();
+
+        int added = await lab8Service.ImportAsync(
+            new JsonOrderLineImporter(),
+            lab8Order.Id,
+            dataPath,
+            cts.Token);
+
+        Console.WriteLine($"Імпортовано записів: {added}");
+        Console.WriteLine($"Подій додавання: {changedCount}");
+        Console.WriteLine($"Кількість рядків: {lab8Order.Lines.Count}");
+        Console.WriteLine($"Загальна сума: {lab8Order.Total:F2}");
+    }
+        catch (OperationCanceledException)
+    {
+        Console.WriteLine("Імпорт скасовано.");
+    }
+    catch (DomainException ex)
+    {
+        Console.WriteLine($"Дані відхилено: {ex.Message}");
+    }
+    catch (JsonException ex)
+    {
+        Console.WriteLine($"Помилка формату JSON: {ex.Message}");
+    }
+    catch (FileNotFoundException)
+    {
+        Console.WriteLine($"Файл не знайдено: {dataPath}");
+    }
+    finally
+    {
+        Console.CancelKeyPress -= cancelHandler;
+    }
+     Console.WriteLine(new string('=', 60));
 }
 
 static void TryDo(

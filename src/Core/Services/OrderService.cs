@@ -1,3 +1,5 @@
+
+using Core;
 using Core.Abstractions;
 using Core.Domain;
 using Core.Events;
@@ -58,7 +60,7 @@ public sealed class OrderService(
         int quantity)
     {
         Order order = _store.GetById(id)
-            ?? throw new InvalidOperationException(
+            ?? throw new DomainException(
                 $"Немає замовлення з id={id}.");
 
         order.AddLine(
@@ -77,7 +79,7 @@ public sealed class OrderService(
     public void Confirm(string id)
     {
         Order order = _store.GetById(id)
-            ?? throw new InvalidOperationException(
+            ?? throw new DomainException(
                 $"Немає замовлення з id={id}.");
 
         order.Confirm();
@@ -87,6 +89,65 @@ public sealed class OrderService(
         OnChanged(
             order,
             OrderChangeKind.OrderConfirmed);
+    }
+
+    public async Task<int> ImportAsync(
+        IOrderLineImporter importer,
+        string orderId,
+        string path,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(importer);
+        ArgumentException.ThrowIfNullOrWhiteSpace(orderId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        ct.ThrowIfCancellationRequested();
+
+        Order order = _store.GetById(orderId)
+            ?? throw new DomainException(
+                $"Немає замовлення з id={orderId}.");
+
+        if (order.Status != OrderStatus.Draft)
+            throw new DomainException(
+                order.Status == OrderStatus.Confirmed
+                    ? "Замовлення вже підтверджено"
+                    : $"До замовлення {orderId} у стані {order.Status} не можна імпортувати рядки");
+
+        IReadOnlyList<OrderLine> items =
+            await importer.LoadAsync(path, ct);
+
+        int added = 0;
+
+        foreach (OrderLine item in items)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            // Не додаємо повторно повністю однаковий рядок.
+            bool exists = order.Lines.Any(line =>
+                line.ProductId == item.ProductId &&
+                line.Name == item.Name &&
+                line.Price == item.Price &&
+                line.Quantity == item.Quantity);
+
+            if (exists)
+                continue;
+
+            order.AddLine(
+                item.ProductId,
+                item.Name,
+                item.Price,
+                item.Quantity);
+
+            _store.Update(order);
+
+            OnChanged(
+                order,
+                OrderChangeKind.LineAdded);
+
+            added++;
+        }
+
+        return added;
     }
 
     public IReadOnlyList<Order> All() =>

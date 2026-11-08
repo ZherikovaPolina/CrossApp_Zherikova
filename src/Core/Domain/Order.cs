@@ -1,3 +1,5 @@
+
+using Core;
 using Core.Dto;
 
 namespace Core.Domain;
@@ -59,8 +61,10 @@ public sealed class Order
         int quantity)
     {
         if (Status != OrderStatus.Draft)
-            throw new InvalidOperationException(
-                $"До замовлення {Id} у стані {Status} не можна додавати рядки");
+            throw new DomainException(
+                Status == OrderStatus.Confirmed
+                    ? "Замовлення вже підтверджено"
+                    : $"До замовлення {Id} у стані {Status} не можна додавати рядки");
 
         _lines.Add(OrderLine.Create(
             productId,
@@ -71,23 +75,19 @@ public sealed class Order
 
     public void Confirm()
     {
+        if (Status == OrderStatus.Confirmed)
+            throw new DomainException(
+                "Замовлення вже підтверджено");
+
+        if (Status == OrderStatus.Cancelled)
+            throw new DomainException(
+                $"Скасоване замовлення {Id} не можна підтвердити");
+
         if (_lines.Count == 0)
-            throw new InvalidOperationException(
+            throw new DomainException(
                 $"Замовлення {Id} не можна підтвердити, оскільки воно не містить товарів");
 
-        Status = Status switch
-        {
-            OrderStatus.Draft => OrderStatus.Confirmed,
-
-            OrderStatus.Confirmed => throw new InvalidOperationException(
-                $"Замовлення {Id} вже підтверджене"),
-
-            OrderStatus.Cancelled => throw new InvalidOperationException(
-                $"Скасоване замовлення {Id} не можна підтвердити"),
-
-            _ => throw new InvalidOperationException(
-                $"Невідомий стан замовлення {Id}")
-        };
+        Status = OrderStatus.Confirmed;
     }
 
     public void Cancel()
@@ -98,10 +98,10 @@ public sealed class Order
 
             OrderStatus.Confirmed => OrderStatus.Cancelled,
 
-            OrderStatus.Cancelled => throw new InvalidOperationException(
+            OrderStatus.Cancelled => throw new DomainException(
                 $"Замовлення {Id} вже скасоване"),
 
-            _ => throw new InvalidOperationException(
+            _ => throw new DomainException(
                 $"Невідомий стан замовлення {Id}")
         };
     }
