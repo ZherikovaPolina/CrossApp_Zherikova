@@ -1,0 +1,18 @@
+
+[
+  {
+    "id": "P001",
+    "name": "Ноутбук",
+    "availableQuantity": 10
+  },
+  {
+    "id": "P002",
+    "name": "Миша",
+    "availableQuantity": 25
+  },
+  {
+    "id": "P003",
+    "name": "Клавіатура",
+    "availableQuantity": 15
+  }
+]

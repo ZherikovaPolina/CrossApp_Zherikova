@@ -91,7 +91,90 @@ public sealed class OrderService(
             OrderChangeKind.OrderConfirmed);
     }
 
+    // Звичайний асинхронний імпорт із підтримкою прогресу
     public async Task<int> ImportAsync(
+        IOrderLineImporter importer,
+        string orderId,
+        string path,
+        CancellationToken ct = default,
+        IProgress<int>? progress = null)
+    {
+        ArgumentNullException.ThrowIfNull(importer);
+        ArgumentException.ThrowIfNullOrWhiteSpace(orderId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        ct.ThrowIfCancellationRequested();
+
+        Order order = _store.GetById(orderId)
+            ?? throw new DomainException(
+                $"Немає замовлення з id={orderId}.");
+
+        if (order.Status != OrderStatus.Draft)
+            throw new DomainException(
+                order.Status == OrderStatus.Confirmed
+                    ? "Замовлення вже підтверджено"
+                    : $"До замовлення {orderId} у стані {order.Status} не можна імпортувати рядки");
+
+        IReadOnlyList<OrderLine> items =
+            await importer.LoadAsync(path, ct);
+
+        // Початковий прогрес
+        progress?.Report(0);
+
+        int added = 0;
+        int processed = 0;
+
+        foreach (OrderLine item in items)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            // Перевіряємо, чи існує повністю однаковий рядок
+            bool exists = order.Lines.Any(line =>
+                line.ProductId == item.ProductId &&
+                line.Name == item.Name &&
+                line.Price == item.Price &&
+                line.Quantity == item.Quantity);
+
+            if (!exists)
+            {
+                order.AddLine(
+                    item.ProductId,
+                    item.Name,
+                    item.Price,
+                    item.Quantity);
+
+                _store.Update(order);
+
+                OnChanged(
+                    order,
+                    OrderChangeKind.LineAdded);
+
+                added++;
+            }
+
+            // Кількість оброблених записів
+            processed++;
+
+            // Обчислення відсотка виконання
+            int percent = items.Count == 0
+                ? 100
+                : (int)(processed * 100L / items.Count);
+
+            // Повідомлення про прогрес
+            progress?.Report(percent);
+        }
+
+        // Якщо JSON містить порожній список
+        if (items.Count == 0)
+        {
+            progress?.Report(100);
+        }
+
+        return added;
+    }
+
+    // Потоковий імпорт через IAsyncEnumerable
+    public async Task<int> ImportStreamAsync(
         IOrderLineImporter importer,
         string orderId,
         string path,
@@ -113,16 +196,13 @@ public sealed class OrderService(
                     ? "Замовлення вже підтверджено"
                     : $"До замовлення {orderId} у стані {order.Status} не можна імпортувати рядки");
 
-        IReadOnlyList<OrderLine> items =
-            await importer.LoadAsync(path, ct);
-
         int added = 0;
 
-        foreach (OrderLine item in items)
+        await foreach (OrderLine item in
+            importer.LoadStreamAsync(path, ct).WithCancellation(ct))
         {
             ct.ThrowIfCancellationRequested();
 
-            // Не додаємо повторно повністю однаковий рядок.
             bool exists = order.Lines.Any(line =>
                 line.ProductId == item.ProductId &&
                 line.Name == item.Name &&
@@ -148,6 +228,44 @@ public sealed class OrderService(
         }
 
         return added;
+    }
+
+    // Імпорт зі зв'язаними токенами та таймаутом
+    public async Task<int> ImportWithTimeoutAsync(
+        IOrderLineImporter importer,
+        string orderId,
+        string path,
+        TimeSpan timeout,
+        CancellationToken userToken = default)
+    {
+        if (timeout <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(timeout));
+
+        using var timeoutCts =
+            new CancellationTokenSource();
+
+        timeoutCts.CancelAfter(timeout);
+
+        using var linkedCts =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                userToken,
+                timeoutCts.Token);
+
+        try
+        {
+            return await ImportStreamAsync(
+                importer,
+                orderId,
+                path,
+                linkedCts.Token);
+        }
+        catch (OperationCanceledException)
+            when (timeoutCts.IsCancellationRequested &&
+                  !userToken.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"Час імпорту перевищив {timeout.TotalMilliseconds} мс.");
+        }
     }
 
     public IReadOnlyList<Order> All() =>

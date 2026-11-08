@@ -1272,10 +1272,9 @@ Console.WriteLine(
     Console.WriteLine(new string('=', 60));
 }
 
-
  // ------------------------------------------------------------
  // Лабораторна робота №8
- // Асинхронний імпорт, CancellationToken, Ctrl+C
+ // Асинхронний імпорт, CancellationToken, Ctrl+C, IProgress<int>
  // ------------------------------------------------------------
 
 static async Task RunLab8Async()
@@ -1309,7 +1308,7 @@ static async Task RunLab8Async()
 
     using var cts = new CancellationTokenSource();
 
-    //cts.CancelAfter(TimeSpan.Zero);
+    // cts.CancelAfter(TimeSpan.Zero);
 
     ConsoleCancelEventHandler cancelHandler = (_, e) =>
     {
@@ -1326,38 +1325,58 @@ static async Task RunLab8Async()
         Console.WriteLine($"Замовлення: {lab8Order.Id}");
         Console.WriteLine();
 
+        // ----------------------------------------------------
+        // ДОДАТКОВЕ ЗАВДАННЯ №3
+        // Відображення прогресу через IProgress<int>
+        // ----------------------------------------------------
+
+        Console.WriteLine("ХІД ІМПОРТУ");
+        Console.WriteLine(new string('-', 40));
+
+        IProgress<int> progress = new ConsoleImportProgress();
+
         int added = await lab8Service.ImportAsync(
             new JsonOrderLineImporter(),
             lab8Order.Id,
             dataPath,
-            cts.Token);
+            cts.Token,
+            progress);
+
+        Console.WriteLine();
+        Console.WriteLine("РЕЗУЛЬТАТИ ІМПОРТУ");
+        Console.WriteLine(new string('-', 40));
 
         Console.WriteLine($"Імпортовано записів: {added}");
         Console.WriteLine($"Подій додавання: {changedCount}");
         Console.WriteLine($"Кількість рядків: {lab8Order.Lines.Count}");
         Console.WriteLine($"Загальна сума: {lab8Order.Total:F2}");
     }
-        catch (OperationCanceledException)
+    catch (OperationCanceledException)
     {
+        Console.WriteLine();
         Console.WriteLine("Імпорт скасовано.");
     }
     catch (DomainException ex)
     {
+        Console.WriteLine();
         Console.WriteLine($"Дані відхилено: {ex.Message}");
     }
     catch (JsonException ex)
     {
+        Console.WriteLine();
         Console.WriteLine($"Помилка формату JSON: {ex.Message}");
     }
     catch (FileNotFoundException)
     {
+        Console.WriteLine();
         Console.WriteLine($"Файл не знайдено: {dataPath}");
     }
     finally
     {
         Console.CancelKeyPress -= cancelHandler;
     }
-     Console.WriteLine(new string('=', 60));
+
+    Console.WriteLine(new string('=', 60));
 }
 
 static void TryDo(
@@ -1380,3 +1399,26 @@ static void TryDo(
 }
 
 return 0;
+
+internal sealed class ConsoleImportProgress : IProgress<int>
+{
+    private int _lastPercent = -1;
+
+    private readonly object _lock = new();
+
+    public void Report(int percent)
+    {
+        lock (_lock)
+        {
+            percent = Math.Clamp(percent, 0, 100);
+
+            if (percent <= _lastPercent)
+                return;
+
+            _lastPercent = percent;
+
+            Console.WriteLine(
+                $"Прогрес імпорту: {percent,3}%");
+        }
+    }
+}
