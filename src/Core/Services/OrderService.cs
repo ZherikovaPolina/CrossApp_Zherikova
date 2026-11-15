@@ -91,7 +91,6 @@ public sealed class OrderService(
             OrderChangeKind.OrderConfirmed);
     }
 
-    // Звичайний асинхронний імпорт із підтримкою прогресу
     public async Task<int> ImportAsync(
         IOrderLineImporter importer,
         string orderId,
@@ -118,7 +117,6 @@ public sealed class OrderService(
         IReadOnlyList<OrderLine> items =
             await importer.LoadAsync(path, ct);
 
-        // Початковий прогрес
         progress?.Report(0);
 
         int added = 0;
@@ -128,7 +126,6 @@ public sealed class OrderService(
         {
             ct.ThrowIfCancellationRequested();
 
-            // Перевіряємо, чи існує повністю однаковий рядок
             bool exists = order.Lines.Any(line =>
                 line.ProductId == item.ProductId &&
                 line.Name == item.Name &&
@@ -152,19 +149,15 @@ public sealed class OrderService(
                 added++;
             }
 
-            // Кількість оброблених записів
             processed++;
 
-            // Обчислення відсотка виконання
             int percent = items.Count == 0
                 ? 100
                 : (int)(processed * 100L / items.Count);
 
-            // Повідомлення про прогрес
             progress?.Report(percent);
         }
 
-        // Якщо JSON містить порожній список
         if (items.Count == 0)
         {
             progress?.Report(100);
@@ -173,7 +166,6 @@ public sealed class OrderService(
         return added;
     }
 
-    // Потоковий імпорт через IAsyncEnumerable
     public async Task<int> ImportStreamAsync(
         IOrderLineImporter importer,
         string orderId,
@@ -230,7 +222,6 @@ public sealed class OrderService(
         return added;
     }
 
-    // Імпорт зі зв'язаними токенами та таймаутом
     public async Task<int> ImportWithTimeoutAsync(
         IOrderLineImporter importer,
         string orderId,

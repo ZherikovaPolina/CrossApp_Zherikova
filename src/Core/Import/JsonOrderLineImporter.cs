@@ -9,7 +9,6 @@ namespace Core.Import;
 
 public sealed class JsonOrderLineImporter : IOrderLineImporter
 {
-    // Основний асинхронний імпорт
     public async Task<IReadOnlyList<OrderLine>> LoadAsync(
         string path,
         CancellationToken ct = default)
@@ -70,7 +69,6 @@ public sealed class JsonOrderLineImporter : IOrderLineImporter
         return result.AsReadOnly();
     }
 
-    // Додаткове завдання №1: потоковий асинхронний імпорт
     public async IAsyncEnumerable<OrderLine> LoadStreamAsync(
         string path,
         [EnumeratorCancellation] CancellationToken ct = default)
