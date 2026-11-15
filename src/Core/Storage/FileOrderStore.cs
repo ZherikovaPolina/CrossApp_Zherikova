@@ -2,13 +2,17 @@ using System.Text.Json;
 using Core.Abstractions;
 using Core.Domain;
 using Core.Dto;
+using System.Text.Encodings.Web;
 
 namespace Core.Storage;
 
 public sealed class FileOrderStore(string path) : IOrderStore
 {
-    private static readonly JsonSerializerOptions Options =
-        new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions Options = new()
+{
+    WriteIndented = true,
+    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+};
 
     private readonly Dictionary<string, Order> _cache =
         new(StringComparer.OrdinalIgnoreCase);
@@ -39,19 +43,36 @@ public sealed class FileOrderStore(string path) : IOrderStore
         _loaded = true;
     }
 
-    private void Flush()
-    {
-        Directory.CreateDirectory(
-            Path.GetDirectoryName(_path)!);
 
-        File.WriteAllText(
-            _path,
-            JsonSerializer.Serialize(
-                _cache.Values
-                    .Select(order => order.ToDto())
-                    .ToList(),
-                Options));
+private void Flush()
+{
+
+    Directory.CreateDirectory(
+        Path.GetDirectoryName(_path)!);
+
+    string tempPath = _path + ".tmp";
+
+    var dtos = _cache.Values
+        .Select(order => order.ToDto())
+        .ToList();
+
+    string json = JsonSerializer.Serialize(dtos, Options);
+
+    try
+    {
+        File.WriteAllText(tempPath, json);
+
+        File.Move(tempPath, _path, overwrite: true);
     }
+    finally
+    {
+        if (File.Exists(tempPath))
+        {
+            File.Delete(tempPath);
+        }
+    }
+}
+
 
     public IReadOnlyList<Order> List()
     {

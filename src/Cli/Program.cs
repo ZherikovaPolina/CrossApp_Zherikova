@@ -12,12 +12,30 @@ using Cli.Notifications;
 using Core.Notifications;
 using Core.Reports;
 using System.Diagnostics;
+using Core.Configuration;
+using Microsoft.Extensions.Configuration;
+using System.Reflection;
+
 
 Console.OutputEncoding = Encoding.UTF8;
+
+// ------------------------------------------------------------
+// Запуск лабораторної роботи №8
+// ------------------------------------------------------------
 
 if (args.Contains("--file", StringComparer.OrdinalIgnoreCase))
 {
     await RunLab8Async();
+    return 0;
+}
+
+// ------------------------------------------------------------
+// Запуск лабораторної роботи №9
+// ------------------------------------------------------------
+
+if (args.Contains("--lab9", StringComparer.OrdinalIgnoreCase))
+{
+    RunLab9(args);
     return 0;
 }
 
@@ -1378,6 +1396,181 @@ static async Task RunLab8Async()
 
     Console.WriteLine(new string('=', 60));
 }
+
+
+ // ------------------------------------------------------------
+ // Лабораторна робота №9
+ // Шляхи, JSON, конфігурація, Secrets
+ // ------------------------------------------------------------
+
+static void RunLab9(string[] args)
+{
+    Console.WriteLine();
+    Console.WriteLine(new string('=', 60));
+    Console.WriteLine("=== Лабораторна робота №9 ===");
+    Console.WriteLine("ОСНОВНА ЧАСТИНА");
+    Console.WriteLine("Шляхи, JSON, конфігурація, Secrets");
+    Console.WriteLine(new string('=', 60));
+
+    string envName =
+        Environment.GetEnvironmentVariable("CROSSAPP_ENVIRONMENT")
+        ?? "Development";
+
+    var config = new ConfigurationBuilder()
+        .SetBasePath(AppContext.BaseDirectory)
+        .AddJsonFile("appsettings.json", optional: false)
+        .AddJsonFile(
+            $"appsettings.{envName}.json",
+            optional: true)
+        .AddUserSecrets(
+            Assembly.GetExecutingAssembly(),
+            optional: true)
+        .AddEnvironmentVariables(prefix: "CROSSAPP_")
+        .AddCommandLine(
+    args.Where(arg => !arg.Equals("--lab9", StringComparison.OrdinalIgnoreCase))
+        .ToArray())
+        .Build();
+
+    AppOptions options = config.Get<AppOptions>()
+        ?? new AppOptions();
+
+    // Підтримка скороченої змінної CROSSAPP_DATA_PATH
+// із збереженням пріоритету аргументів командного рядка
+string? dataPathOverride =
+    Environment.GetEnvironmentVariable("CROSSAPP_DATA_PATH");
+
+if (!string.IsNullOrWhiteSpace(dataPathOverride) &&
+    !args.Any(arg =>
+        arg.StartsWith("--Storage:DataPath=", StringComparison.OrdinalIgnoreCase)) &&
+    string.IsNullOrWhiteSpace(
+        Environment.GetEnvironmentVariable("CROSSAPP_Storage__DataPath")))
+{
+    options.Storage.DataPath = dataPathOverride;
+}
+
+    string fullPath = options.Storage.ResolveFullPath(
+        AppContext.BaseDirectory);
+
+    IOrderStore lab9Store = new FileOrderStore(fullPath);
+
+    Console.WriteLine();
+    Console.WriteLine("ФАЙЛОВЕ СХОВИЩЕ");
+    Console.WriteLine(new string('-', 40));
+
+    Console.WriteLine($"Шлях до JSON: {fullPath}");
+    Console.WriteLine($"Кількість збережених замовлень: {lab9Store.List().Count}");
+
+    Console.WriteLine();
+    Console.WriteLine("ПЕРЕВІРКА АТОМАРНОГО ЗАПИСУ");
+    Console.WriteLine(new string('-', 40));
+
+    string testPath = Path.Combine(
+        Path.GetDirectoryName(fullPath)!,
+        "lab9-test-orders.json");
+
+    Order testOrder = Order.Create("C-LAB9");
+
+    testOrder.AddLine(
+        "P001",
+        "Ноутбук",
+        25000m,
+        2);
+
+    IOrderStore testStore = new FileOrderStore(testPath);
+    testStore.Add(testOrder);
+
+    Console.WriteLine($"Тестовий файл: {testPath}");
+    Console.WriteLine($"JSON створено: {File.Exists(testPath)}");
+    Console.WriteLine($"Тимчасовий файл залишився: {File.Exists(testPath + ".tmp")}");
+
+    IOrderStore checkStore = new FileOrderStore(testPath);
+    Order? savedOrder = checkStore.GetById(testOrder.Id);
+
+    Console.WriteLine($"Замовлення прочитано: {savedOrder is not null}");
+    Console.WriteLine($"Загальна сума: {savedOrder?.Total:F2}");
+
+    Console.WriteLine();
+    Console.WriteLine("ПЕРЕВІРКА КАТАЛОГУ ТОВАРІВ");
+    Console.WriteLine(new string('-', 40));
+
+    string catalogPath = Path.Combine(
+        Path.GetDirectoryName(fullPath)!,
+        "products.json");
+
+    FileCatalogStore catalogStore = new FileCatalogStore(catalogPath);
+
+    var products = new List<ProductDto>
+    {
+        new ProductDto("P001", "Ноутбук", 25000m)
+        {
+            Sku = "LAP-001",
+            Unit = "шт",
+            Quantity = 5
+        },
+        new ProductDto("P002", "Мишка", 750m)
+        {
+            Sku = "MOU-002",
+            Unit = "шт",
+            Quantity = 10
+        }
+    };
+
+if (!File.Exists(catalogPath))
+{
+    catalogStore.Save(products);
+}
+
+IReadOnlyList<ProductDto> savedProducts;
+
+try
+{
+    savedProducts = catalogStore.Load();
+}
+catch (JsonException ex)
+{
+    Console.WriteLine(
+        $"Помилка читання каталогу: некоректний JSON. {ex.Message}");
+    return;
+}
+
+    Console.WriteLine($"Файл каталогу: {catalogPath}");
+    Console.WriteLine($"Кількість товарів: {savedProducts.Count}");
+    Console.WriteLine($"JSON створено: {File.Exists(catalogPath)}");
+    Console.WriteLine($"Тимчасовий файл залишився: {File.Exists(catalogPath + ".tmp")}");
+
+    foreach (ProductDto product in savedProducts)
+    {
+        Console.WriteLine(
+            $"{product.Id} | {product.Sku} | {product.Name} | " +
+            $"{product.Unit} | {product.Quantity} | {product.Price:F2}");
+    }
+
+
+
+    Console.WriteLine();
+    Console.WriteLine("НАЛАШТУВАННЯ ПРОГРАМИ");
+    Console.WriteLine(new string('-', 40));
+
+    Console.WriteLine($"Середовище: {envName}");
+    Console.WriteLine($"Рівень логування: {options.Logging.MinimumLevel}");
+    Console.WriteLine($"Каталог даних: {options.Storage.DataPath}");
+    Console.WriteLine($"Назва файлу: {options.Storage.FileName}");
+    Console.WriteLine($"Повний шлях до файлу: {fullPath}");
+    Console.WriteLine($"Валюта: {options.Orders.Currency}");
+
+    Console.WriteLine();
+    Console.WriteLine("ПЕРЕВІРКА SECRETS");
+    Console.WriteLine(new string('-', 40));
+
+    string? apiKey = config["Integration:ApiKey"];
+
+    Console.WriteLine(
+        $"API-ключ налаштований: {!string.IsNullOrWhiteSpace(apiKey)}");
+
+
+    Console.WriteLine(new string('=', 60));
+}
+
 
 static void TryDo(
     string title,

@@ -334,3 +334,47 @@ dotnet run --project src/Cli -- --file
 ```
 
 **Перевірка скасування:** під час тривалого імпорту натиснути `Ctrl+C`. Очікуване повідомлення: `Імпорт скасовано.`
+
+
+## Лабораторна робота №9. Конфігурація та Secrets
+
+### Профілі конфігурації
+
+Для налаштування програми я використала два файли:
+- `appsettings.json` — основні налаштування програми.
+- `appsettings.Development.json` — налаштування для розробки з рівнем логування `Debug`.
+
+Профіль вибирається через `CROSSAPP_ENVIRONMENT`. Якщо змінну не задано, використовується `Development`.
+
+### Основні ключі конфігурації
+
+| Ключ | Призначення |
+|---|---|
+| `EnvironmentName` | Назва середовища |
+| `Storage:DataPath` | Папка для збереження файлів |
+| `Storage:FileName` | Назва JSON-файлу |
+| `Logging:MinimumLevel` | Рівень логування |
+| `Orders:Currency` | Валюта замовлень |
+| `Integration:ApiKey` | Секретний API-ключ |
+
+### Приклади змінних середовища
+
+**Bash (macOS/Linux):**
+
+```bash
+export CROSSAPP_ENVIRONMENT=Development
+export CROSSAPP_Storage__DataPath=custom-data
+dotnet run --project src/Cli -- --lab9
+```
+
+**PowerShell (Windows):**
+
+```powershell
+$env:CROSSAPP_ENVIRONMENT = "Development"
+$env:CROSSAPP_Storage__DataPath = "custom-data"
+dotnet run --project src/Cli -- --lab9
+```
+
+Також можна використовувати змінну `CROSSAPP_DATA_PATH` для зміни папки з даними.
+
+API-ключ я зберігаю через .NET User Secrets. Програма перевіряє лише його наявність, не виводячи значення в консоль.

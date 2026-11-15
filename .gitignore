@@ -489,3 +489,5 @@ obj/
 # Publish output
 publish/
 publish-*/
+# Дані, створені під час роботи програми
+data/
