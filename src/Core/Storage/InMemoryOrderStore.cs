@@ -1,36 +1,83 @@
+using System.Collections.Concurrent;
 using Core.Abstractions;
 using Core.Domain;
 
 namespace Core.Storage;
 
-public sealed class InMemoryOrderStore(
-    IEnumerable<Order>? seed = null) : IOrderStore
+public sealed class InMemoryOrderStore : IOrderStore
 {
-    private readonly Dictionary<string, Order> _items =
-        (seed ?? []).ToDictionary(
-            order => order.Id,
-            StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Order> _items =
+        new(StringComparer.OrdinalIgnoreCase);
 
-    public IReadOnlyList<Order> List() =>
-        _items.Values.ToList();
-
-    public Order? GetById(string id) =>
-        _items.GetValueOrDefault(id);
-
-    public void Update(Order item) =>
-        _items[item.Id] = item;
-
-    public bool Remove(string id) =>
-        _items.Remove(id);
-
-    public void Add(Order item)
+    public InMemoryOrderStore()
     {
-        ArgumentNullException.ThrowIfNull(item);
+    }
 
-        if (_items.ContainsKey(item.Id))
+    public InMemoryOrderStore(IEnumerable<Order> seed)
+    {
+        foreach (var item in seed)
+        {
+            _items.TryAdd(item.Id, item);
+        }
+    }
+
+    public Task<IReadOnlyList<Order>> ListAsync(
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        IReadOnlyList<Order> orders = _items.Values.ToList();
+        return Task.FromResult(orders);
+    }
+
+    public Task<Order?> GetByIdAsync(
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        _items.TryGetValue(id, out var order);
+        return Task.FromResult(order);
+    }
+
+    public Order? GetById(string id)
+{
+    _items.TryGetValue(id, out var order);
+    return order;
+}
+
+    public Task AddAsync(
+        Order item,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!_items.TryAdd(item.Id, item))
+        {
             throw new InvalidOperationException(
-                $"Запис з id={item.Id} уже існує.");
+                $"Order with ID '{item.Id}' already exists.");
+        }
 
-        _items.Add(item.Id, item);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateAsync(
+        Order item,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        _items[item.Id] = item;
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> RemoveAsync(
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        bool removed = _items.TryRemove(id, out _);
+        return Task.FromResult(removed);
     }
 }

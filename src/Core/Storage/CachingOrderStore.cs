@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Core.Abstractions;
 using Core.Domain;
 
@@ -8,18 +9,26 @@ public sealed class CachingOrderStore(IOrderStore inner) : IOrderStore
     private readonly IOrderStore _inner =
         inner ?? throw new ArgumentNullException(nameof(inner));
 
-    private readonly Dictionary<string, Order> _cache =
+    private readonly ConcurrentDictionary<string, Order> _cache =
         new(StringComparer.OrdinalIgnoreCase);
 
-    public IReadOnlyList<Order> List() =>
-        _inner.List();
-
-    public Order? GetById(string id)
+    public Task<IReadOnlyList<Order>> ListAsync(
+        CancellationToken cancellationToken = default)
     {
+        return _inner.ListAsync(cancellationToken);
+    }
+
+    public async Task<Order?> GetByIdAsync(
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (_cache.TryGetValue(id, out Order? cached))
             return cached;
 
-        Order? order = _inner.GetById(id);
+        Order? order =
+            await _inner.GetByIdAsync(id, cancellationToken);
 
         if (order is not null)
             _cache[id] = order;
@@ -27,28 +36,35 @@ public sealed class CachingOrderStore(IOrderStore inner) : IOrderStore
         return order;
     }
 
-    public void Add(Order item)
+    public async Task AddAsync(
+        Order item,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        _inner.Add(item);
+        await _inner.AddAsync(item, cancellationToken);
         _cache[item.Id] = item;
     }
 
-    public void Update(Order item)
+    public async Task UpdateAsync(
+        Order item,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        _inner.Update(item);
+        await _inner.UpdateAsync(item, cancellationToken);
         _cache[item.Id] = item;
     }
 
-    public bool Remove(string id)
+    public async Task<bool> RemoveAsync(
+        string id,
+        CancellationToken cancellationToken = default)
     {
-        bool removed = _inner.Remove(id);
+        bool removed =
+            await _inner.RemoveAsync(id, cancellationToken);
 
         if (removed)
-            _cache.Remove(id);
+            _cache.TryRemove(id, out _);
 
         return removed;
     }

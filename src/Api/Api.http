@@ -1,0 +1,73 @@
+@baseUrl = http://localhost:5080
+@orderId = REPLACE_WITH_ORDER_ID
+
+### 1. Перевірка роботи API
+GET {{baseUrl}}/health
+
+### 2. Отримання списку замовлень
+GET {{baseUrl}}/api/orders
+
+### 3. CREATE — створення замовлення
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "customer": "Polina",
+  "createdAt": "2026-11-21T12:00:00Z",
+  "lines": [
+    {
+      "productId": "P001",
+      "name": "Laptop",
+      "price": 25000,
+      "quantity": 1
+    },
+    {
+      "productId": "P002",
+      "name": "Mouse",
+      "price": 500,
+      "quantity": 2
+    }
+  ]
+}
+
+### 4. READ — отримання замовлення за ID
+GET {{baseUrl}}/api/orders/{{orderId}}
+
+### 5. UPDATE — оновлення замовлення
+PUT {{baseUrl}}/api/orders/{{orderId}}
+Content-Type: application/json
+
+{
+  "customer": "Polina Updated",
+  "createdAt": "2026-11-21T13:00:00Z",
+  "lines": [
+    {
+      "productId": "P001",
+      "name": "Laptop",
+      "price": 24000,
+      "quantity": 1
+    }
+  ]
+}
+
+### 6. Перевірка оновленого замовлення
+GET {{baseUrl}}/api/orders/{{orderId}}
+
+### 7. Обчислення загальної суми
+GET {{baseUrl}}/api/orders/{{orderId}}/total
+
+### 8. DELETE — видалення замовлення
+DELETE {{baseUrl}}/api/orders/{{orderId}}
+
+### 9. Перевірка після DELETE — очікуємо 404
+GET {{baseUrl}}/api/orders/{{orderId}}
+
+### 10. Перевірка валідації — очікуємо 400
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "customer": "",
+  "createdAt": "2026-11-21T12:00:00Z",
+  "lines": []
+}

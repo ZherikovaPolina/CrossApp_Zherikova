@@ -6,4 +6,5 @@ public record OrderDto(
     string Id,
     string CustomerId,
     OrderStatus Status,
-    IReadOnlyList<OrderLineDto> Lines);
+    IReadOnlyList<OrderLineDto> Lines,
+    DateTimeOffset? CreatedAt = null);

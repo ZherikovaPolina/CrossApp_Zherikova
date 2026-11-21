@@ -1,37 +1,39 @@
 using System.Text.Json;
+using System.Text.Encodings.Web;
 using Core.Abstractions;
 using Core.Domain;
 using Core.Dto;
-using System.Text.Encodings.Web;
 
 namespace Core.Storage;
 
 public sealed class FileOrderStore(string path) : IOrderStore
 {
     private static readonly JsonSerializerOptions Options = new()
-{
-    WriteIndented = true,
-    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-};
+    {
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
 
     private readonly Dictionary<string, Order> _cache =
         new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly string _path =
-        Path.GetFullPath(path);
+    private readonly string _path = Path.GetFullPath(path);
+
+    private readonly SemaphoreSlim _gate = new(1, 1);
 
     private bool _loaded;
 
-    private void EnsureLoaded()
+    private async Task EnsureLoadedAsync(CancellationToken ct)
     {
         if (_loaded)
             return;
 
         if (File.Exists(_path))
         {
+            string json = await File.ReadAllTextAsync(_path, ct);
+
             var dtos =
-                JsonSerializer.Deserialize<List<OrderDto>>(
-                    File.ReadAllText(_path)) ?? [];
+                JsonSerializer.Deserialize<List<OrderDto>>(json) ?? [];
 
             foreach (OrderDto dto in dtos)
             {
@@ -43,84 +45,130 @@ public sealed class FileOrderStore(string path) : IOrderStore
         _loaded = true;
     }
 
-
-private void Flush()
-{
-
-    Directory.CreateDirectory(
-        Path.GetDirectoryName(_path)!);
-
-    string tempPath = _path + ".tmp";
-
-    var dtos = _cache.Values
-        .Select(order => order.ToDto())
-        .ToList();
-
-    string json = JsonSerializer.Serialize(dtos, Options);
-
-    try
+    private async Task FlushAsync(CancellationToken ct)
     {
-        File.WriteAllText(tempPath, json);
+        Directory.CreateDirectory(
+            Path.GetDirectoryName(_path)!);
 
-        File.Move(tempPath, _path, overwrite: true);
-    }
-    finally
-    {
-        if (File.Exists(tempPath))
+        string tempPath = _path + ".tmp";
+
+        var dtos = _cache.Values
+            .Select(order => order.ToDto())
+            .ToList();
+
+        string json = JsonSerializer.Serialize(dtos, Options);
+
+        try
         {
-            File.Delete(tempPath);
+            await File.WriteAllTextAsync(tempPath, json, ct);
+
+            File.Move(tempPath, _path, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+                File.Delete(tempPath);
         }
     }
-}
 
-
-    public IReadOnlyList<Order> List()
+    public async Task<IReadOnlyList<Order>> ListAsync(
+        CancellationToken cancellationToken = default)
     {
-        EnsureLoaded();
+        await _gate.WaitAsync(cancellationToken);
 
-        return _cache.Values.ToList();
+        try
+        {
+            await EnsureLoadedAsync(cancellationToken);
+            return _cache.Values.ToList();
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
-    public Order? GetById(string id)
+    public async Task<Order?> GetByIdAsync(
+        string id,
+        CancellationToken cancellationToken = default)
     {
-        EnsureLoaded();
+        await _gate.WaitAsync(cancellationToken);
 
-        return _cache.GetValueOrDefault(id);
+        try
+        {
+            await EnsureLoadedAsync(cancellationToken);
+            return _cache.GetValueOrDefault(id);
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
-    public void Add(Order item)
+    public async Task AddAsync(
+        Order item,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        EnsureLoaded();
+        await _gate.WaitAsync(cancellationToken);
 
-        if (_cache.ContainsKey(item.Id))
-            throw new InvalidOperationException(
-                $"Запис з id={item.Id} уже існує.");
+        try
+        {
+            await EnsureLoadedAsync(cancellationToken);
 
-        _cache.Add(item.Id, item);
+            if (_cache.ContainsKey(item.Id))
+                throw new InvalidOperationException(
+                    $"Запис з id={item.Id} уже існує.");
 
-        Flush();
+            _cache.Add(item.Id, item);
+            await FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
-    public void Update(Order item)
+    public async Task UpdateAsync(
+        Order item,
+        CancellationToken cancellationToken = default)
     {
-        EnsureLoaded();
+        ArgumentNullException.ThrowIfNull(item);
 
-        _cache[item.Id] = item;
+        await _gate.WaitAsync(cancellationToken);
 
-        Flush();
+        try
+        {
+            await EnsureLoadedAsync(cancellationToken);
+
+            _cache[item.Id] = item;
+            await FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
-    public bool Remove(string id)
+    public async Task<bool> RemoveAsync(
+        string id,
+        CancellationToken cancellationToken = default)
     {
-        EnsureLoaded();
+        await _gate.WaitAsync(cancellationToken);
 
-        if (!_cache.Remove(id))
-            return false;
+        try
+        {
+            await EnsureLoadedAsync(cancellationToken);
 
-        Flush();
+            if (!_cache.Remove(id))
+                return false;
 
-        return true;
+            await FlushAsync(cancellationToken);
+            return true;
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 }

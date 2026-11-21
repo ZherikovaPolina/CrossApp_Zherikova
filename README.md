@@ -378,3 +378,161 @@ dotnet run --project src/Cli -- --lab9
 Також можна використовувати змінну `CROSSAPP_DATA_PATH` для зміни папки з даними.
 
 API-ключ я зберігаю через .NET User Secrets. Програма перевіряє лише його наявність, не виводячи значення в консоль.
+
+
+## Лабораторна робота №10. Minimal API: CRUD, валідація, OpenAPI та Scalar
+
+### Створення та запуск API
+
+Для запуску API я використала фіксований порт `5080`:
+
+```bash
+dotnet run --project src/Api --urls http://localhost:5080
+```
+
+Перевірка роботи:
+
+```bash
+curl -i http://localhost:5080/health
+```
+
+Очікувана відповідь - `200 OK` із JSON `{"status":"ok"}`.
+
+### Маршрути API
+
+| Метод | Маршрут | Призначення |
+|---|---|---|
+| GET | `/api/orders` | Отримання всіх замовлень |
+| GET | `/api/orders/{id}` | Отримання замовлення за ID |
+| POST | `/api/orders` | Створення замовлення |
+| PUT | `/api/orders/{id}` | Оновлення замовлення |
+| DELETE | `/api/orders/{id}` | Видалення замовлення |
+| GET | `/api/orders/{id}/total` | Обчислення суми замовлення |
+
+Для вхідних даних використовується `SaveOrderRequest`, а для відповідей — `OrderDto`.
+
+### Приклади curl
+
+Отримання списку замовлень:
+
+```bash
+curl -i http://localhost:5080/api/orders
+```
+
+Створення замовлення:
+
+```bash
+curl -i -X POST http://localhost:5080/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer": "Polina",
+    "createdAt": "2026-11-21T12:00:00Z",
+    "lines": [
+      {
+        "productId": "P001",
+        "name": "Laptop",
+        "price": 25000,
+        "quantity": 1
+      }
+    ]
+  }'
+```
+
+Після створення сервер повертає `201 Created` та ID замовлення.
+
+Для наступних запитів потрібно замінити `ORDER_ID` на отриманий ID:
+
+```bash
+# Отримання замовлення
+curl -i http://localhost:5080/api/orders/ORDER_ID
+
+# Оновлення замовлення
+curl -i -X PUT http://localhost:5080/api/orders/ORDER_ID \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer": "Polina Updated",
+    "createdAt": "2026-11-21T13:00:00Z",
+    "lines": [
+      {
+        "productId": "P001",
+        "name": "Laptop",
+        "price": 24000,
+        "quantity": 1
+      }
+    ]
+  }'
+
+# Отримання загальної суми
+curl -i http://localhost:5080/api/orders/ORDER_ID/total
+
+# Видалення замовлення
+curl -i -X DELETE http://localhost:5080/api/orders/ORDER_ID
+
+# Перевірка після видалення — 404 Not Found
+curl -i http://localhost:5080/api/orders/ORDER_ID
+```
+
+### Валідація та обробка помилок
+Приклад неправильного запиту:
+
+```bash
+curl -i -X POST http://localhost:5080/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer": "",
+    "createdAt": "2026-11-21T12:00:00Z",
+    "lines": []
+  }'
+```
+
+У разі помилки валідації API повертає `400 Bad Request` із переліком помилок у форматі `ValidationProblemDetails`.
+
+Для обробки внутрішніх винятків використано `AddProblemDetails()` та `UseExceptionHandler()`. У режимі `Production` клієнт не отримує stack trace.
+
+### Dependency Injection
+
+Сховище зареєстроване через DI:
+
+```csharp
+builder.Services.AddSingleton<IOrderStore, InMemoryOrderStore>();
+```
+
+Маршрути отримують `IOrderStore` через параметри делегатів. Для зберігання даних використовується `ConcurrentDictionary`.
+
+### OpenAPI та Scalar
+
+Для документування API я використала OpenAPI та Scalar, які доступні лише в середовищі `Development`:
+
+- OpenAPI: `http://localhost:5080/openapi/v1.json`
+- Scalar: `http://localhost:5080/scalar/v1`
+
+У середовищі `Production` обидва маршрути повертають `404 Not Found`.
+
+### Перевірка
+
+```bash
+dotnet build
+dotnet test
+```
+
+Для фіксації порту я використала параметр `--urls`, який задає адресу запуску API та порт `5080`.
+
+Запуск API з кореневої папки `CrossApp`:
+
+```bash
+dotnet run --project src/Api --urls http://localhost:5080
+```
+
+Перевірка роботи API за допомогою `curl`:
+
+```bash
+curl -i http://localhost:5080/health
+```
+
+У результаті отримала відповідь `200 OK`:
+
+```json
+{
+  "status": "ok"
+}
+```

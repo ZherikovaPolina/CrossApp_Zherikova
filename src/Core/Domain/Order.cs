@@ -1,4 +1,3 @@
-
 using Core;
 using Core.Dto;
 
@@ -10,6 +9,7 @@ public sealed class Order
 
     public string Id { get; }
     public string CustomerId { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
 
     public OrderStatus Status { get; private set; }
 
@@ -24,8 +24,9 @@ public sealed class Order
         string customerId)
     {
         Id = id;
-        CustomerId = customerId;
-        Status = OrderStatus.Draft;
+CustomerId = customerId;
+CreatedAt = DateTimeOffset.UtcNow;
+Status = OrderStatus.Draft;
     }
 
     public static Order Create(string customerId)
@@ -34,6 +35,16 @@ public sealed class Order
             Guid.NewGuid().ToString(),
             customerId);
     }
+
+    public void SetCreatedAt(DateTimeOffset createdAt)
+{
+    if (createdAt == default)
+        throw new ArgumentException(
+            "Дата створення обов'язкова",
+            nameof(createdAt));
+
+    CreatedAt = createdAt;
+}
 
     private static Order CreateWithId(
         string id,
@@ -118,10 +129,11 @@ public sealed class Order
             .AsReadOnly();
 
         return new OrderDto(
-            Id,
-            CustomerId,
-            Status,
-            lines);
+    Id,
+    CustomerId,
+    Status,
+    lines,
+    CreatedAt);
     }
 
     public static Order FromDto(OrderDto dto)
@@ -131,6 +143,9 @@ public sealed class Order
         Order order = CreateWithId(
             dto.Id,
             dto.CustomerId);
+
+        if (dto.CreatedAt is { } createdAt)
+    order.SetCreatedAt(createdAt);
 
         foreach (OrderLineDto line in dto.Lines)
         {
