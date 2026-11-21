@@ -1326,7 +1326,7 @@ static async Task RunLab8Async()
 
     using var cts = new CancellationTokenSource();
 
-    // cts.CancelAfter(TimeSpan.Zero);
+    //cts.CancelAfter(TimeSpan.Zero);
 
     ConsoleCancelEventHandler cancelHandler = (_, e) =>
     {
@@ -1434,8 +1434,6 @@ static void RunLab9(string[] args)
     AppOptions options = config.Get<AppOptions>()
         ?? new AppOptions();
 
-    // Підтримка скороченої змінної CROSSAPP_DATA_PATH
-// із збереженням пріоритету аргументів командного рядка
 string? dataPathOverride =
     Environment.GetEnvironmentVariable("CROSSAPP_DATA_PATH");
 
