@@ -2,6 +2,7 @@ using Api.Contracts;
 using Core.Abstractions;
 using Core.Domain;
 using Core.Dto;
+using Api.Validation;
 
 namespace Api.Endpoints;
 
@@ -12,17 +13,63 @@ public static class OrderEndpoints
         var group = app.MapGroup("/api/orders")
             .WithTags("Orders");
 
-        // GET: список усіх замовлень
-        group.MapGet("/", async (
-            IOrderStore store,
-            CancellationToken ct) =>
-        {
-            var orders = await store.ListAsync(ct);
+        // GET: список замовлень із пагінацією та пошуком
+group.MapGet("/", async (
+    int? page,
+    int? pageSize,
+    string? search,
+    IOrderStore store,
+    CancellationToken ct) =>
+{
+    int currentPage = page ?? 1;
+    int currentPageSize = pageSize ?? 20;
 
-            return Results.Ok(
-                orders.Select(o => o.ToDto()).ToList());
-        })
-        .Produces<List<OrderDto>>(StatusCodes.Status200OK);
+    if (currentPage < 1 || currentPageSize < 1 || currentPageSize > 100)
+    {
+        return Results.ValidationProblem(
+            new Dictionary<string, string[]>
+            {
+                ["pagination"] =
+                [
+                    "page має бути >= 1, а pageSize — від 1 до 100."
+                ]
+            });
+    }
+
+    var orders = await store.ListAsync(ct);
+
+    var query = orders.AsEnumerable();
+
+    if (!string.IsNullOrWhiteSpace(search))
+{
+    string term = search.Trim();
+
+    query = query.Where(o =>
+        o.Id.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+        o.CustomerId.Contains(term, StringComparison.OrdinalIgnoreCase));
+}
+
+    var filtered = query.ToList();
+
+    int total = filtered.Count;
+
+    var items = filtered
+        .OrderBy(o => o.Id)
+        .Skip((int)Math.Min(
+            ((long)currentPage - 1) * currentPageSize,
+            int.MaxValue))
+        .Take(currentPageSize)
+        .Select(o => o.ToDto())
+        .ToList();
+
+    return Results.Ok(new
+    {
+        items,
+        total
+    });
+})
+.Produces(StatusCodes.Status200OK)
+.ProducesValidationProblem();
 
         // GET: замовлення за ID
         group.MapGet("/{id}", async (
@@ -45,9 +92,6 @@ public static class OrderEndpoints
             IOrderStore store,
             CancellationToken ct) =>
         {
-            if (!request.TryValidate(out var errors))
-                return Results.ValidationProblem(errors);
-
             var order = CreateOrder(request);
 
             await store.AddAsync(order, ct);
@@ -56,8 +100,9 @@ public static class OrderEndpoints
                 $"/api/orders/{order.Id}",
                 order.ToDto());
         })
-        .Produces<OrderDto>(StatusCodes.Status201Created)
-        .ProducesValidationProblem();
+        .AddEndpointFilter<ValidationFilter<SaveOrderRequest>>()
+.Produces<OrderDto>(StatusCodes.Status201Created)
+.ProducesValidationProblem();
 
         // PUT: оновлення замовлення
         group.MapPut("/{id}", async (
@@ -66,9 +111,6 @@ public static class OrderEndpoints
             IOrderStore store,
             CancellationToken ct) =>
         {
-            if (!request.TryValidate(out var errors))
-                return Results.ValidationProblem(errors);
-
             var existing = await store.GetByIdAsync(id, ct);
 
             if (existing is null)
@@ -83,9 +125,10 @@ public static class OrderEndpoints
 
             return Results.Ok(replacement.ToDto());
         })
-        .Produces<OrderDto>(StatusCodes.Status200OK)
-        .ProducesValidationProblem()
-        .Produces(StatusCodes.Status404NotFound);
+.AddEndpointFilter<ValidationFilter<SaveOrderRequest>>()
+.Produces<OrderDto>(StatusCodes.Status200OK)
+.ProducesValidationProblem()
+.Produces(StatusCodes.Status404NotFound);
 
         // DELETE: видалення замовлення
         group.MapDelete("/{id}", async (
