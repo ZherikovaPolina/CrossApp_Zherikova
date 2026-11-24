@@ -1,7 +1,6 @@
 using Api.Contracts;
 using Core.Abstractions;
 using Core.Domain;
-using Core.Dto;
 using Api.Validation;
 
 namespace Api.Endpoints;
@@ -59,7 +58,7 @@ group.MapGet("/", async (
             ((long)currentPage - 1) * currentPageSize,
             int.MaxValue))
         .Take(currentPageSize)
-        .Select(o => o.ToDto())
+        .Select(o => OrderDto.FromDomain(o))
         .ToList();
 
     return Results.Ok(new
@@ -81,7 +80,7 @@ group.MapGet("/", async (
 
             return order is null
                 ? Results.NotFound()
-                : Results.Ok(order.ToDto());
+               : Results.Ok(OrderDto.FromDomain(order));
         })
         .Produces<OrderDto>(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status404NotFound);
@@ -97,8 +96,8 @@ group.MapGet("/", async (
             await store.AddAsync(order, ct);
 
             return Results.Created(
-                $"/api/orders/{order.Id}",
-                order.ToDto());
+    $"/api/orders/{order.Id}",
+    OrderDto.FromDomain(order));
         })
         .AddEndpointFilter<ValidationFilter<SaveOrderRequest>>()
 .Produces<OrderDto>(StatusCodes.Status201Created)
@@ -123,7 +122,7 @@ group.MapGet("/", async (
 
             await store.UpdateAsync(replacement, ct);
 
-            return Results.Ok(replacement.ToDto());
+            return Results.Ok(OrderDto.FromDomain(replacement));
         })
 .AddEndpointFilter<ValidationFilter<SaveOrderRequest>>()
 .Produces<OrderDto>(StatusCodes.Status200OK)
