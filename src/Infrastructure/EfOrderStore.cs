@@ -1,7 +1,9 @@
+using Core;
 using Core.Abstractions;
 using Core.Domain;
 using Core.Dto;
 using Infrastructure.Persistence;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure;
@@ -41,29 +43,49 @@ public sealed class EfOrderStore(AppDbContext db) : IOrderStore
             ? null
             : ToDomain(row);
     }
+// Додавання замовлення
+public async Task AddAsync(
+    Order item,
+    CancellationToken cancellationToken = default)
+{
+    ArgumentNullException.ThrowIfNull(item);
 
-    // Додавання замовлення
-    public async Task AddAsync(
-        Order item,
-        CancellationToken cancellationToken = default)
+    bool exists = await _db.Orders
+        .AnyAsync(
+            x => x.Id == item.Id,
+            cancellationToken);
+
+    if (exists)
     {
-        ArgumentNullException.ThrowIfNull(item);
+        throw new DomainException(
+            $"Замовлення з id={item.Id} уже існує.");
+    }
 
-        bool exists = await _db.Orders
-            .AnyAsync(
-                x => x.Id == item.Id,
-                cancellationToken);
+    _db.Orders.Add(ToRow(item));
 
-        if (exists)
-        {
-            throw new InvalidOperationException(
-                $"Замовлення з id={item.Id} уже існує.");
-        }
+    await SaveChangesWithConflictHandlingAsync(
+        cancellationToken);
+}
 
-        _db.Orders.Add(ToRow(item));
-
+// Збереження змін з обробкою конфліктів унікальності
+private async Task SaveChangesWithConflictHandlingAsync(
+    CancellationToken cancellationToken)
+{
+    try
+    {
         await _db.SaveChangesAsync(cancellationToken);
     }
+    catch (DbUpdateException ex)
+        when (ex.InnerException is SqliteException sqliteException
+            && sqliteException.SqliteErrorCode == 19
+            && (sqliteException.SqliteExtendedErrorCode == 1555
+                || sqliteException.SqliteExtendedErrorCode == 2067))
+    {
+        throw new DomainException(
+            "Запис із таким унікальним ідентифікатором уже існує.",
+            ex);
+    }
+}
 
     // Оновлення замовлення
     public async Task UpdateAsync(
@@ -96,7 +118,8 @@ public sealed class EfOrderStore(AppDbContext db) : IOrderStore
                     ToLineRow(line, existing.Id, position)));
         }
 
-        await _db.SaveChangesAsync(cancellationToken);
+        await SaveChangesWithConflictHandlingAsync(
+    cancellationToken);
     }
 
     // Видалення замовлення
