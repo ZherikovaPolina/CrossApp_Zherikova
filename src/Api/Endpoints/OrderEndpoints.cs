@@ -129,6 +129,27 @@ group.MapGet("/", async (
 .ProducesValidationProblem()
 .Produces(StatusCodes.Status404NotFound);
 
+// POST: підтвердження замовлення
+group.MapPost("/{id}/confirm", async (
+    string id,
+    IOrderStore store,
+    CancellationToken ct) =>
+{
+    var order = await store.GetByIdAsync(id, ct);
+
+    if (order is null)
+        return Results.NotFound();
+
+    order.Confirm();
+
+    await store.UpdateAsync(order, ct);
+
+    return Results.Ok(OrderDto.FromDomain(order));
+})
+.Produces<OrderDto>(StatusCodes.Status200OK)
+.Produces(StatusCodes.Status404NotFound)
+.ProducesProblem(StatusCodes.Status409Conflict);
+
         // DELETE: видалення замовлення
         group.MapDelete("/{id}", async (
             string id,

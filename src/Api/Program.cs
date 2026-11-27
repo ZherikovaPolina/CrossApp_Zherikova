@@ -9,6 +9,9 @@ using Api.Validation;
 using FluentValidation;
 using Api.ExceptionHandling;
 
+FluentValidation.ValidatorOptions.Global.LanguageManager.Culture =
+    new System.Globalization.CultureInfo("uk");
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
