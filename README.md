@@ -536,3 +536,56 @@ curl -i http://localhost:5080/health
   "status": "ok"
 }
 ```
+
+
+## Лабораторна робота №11. EF Core + SQLite: міграції, зв'язок 1:N, заміна файлового сховища
+
+### Налаштування підключення до БД
+
+У файлі `src/Api/appsettings.json` додано ключ `ConnectionStrings:AppDb`:
+
+```json
+"ConnectionStrings": {
+  "AppDb": "Data Source=data/app.db"
+}
+```
+
+Шлях до бази даних формується відносно `ContentRootPath`. Файл БД знаходиться в `src/Api/data/app.db`.
+
+### Створення та застосування міграцій
+
+Встановлення EF Core CLI:
+
+```bash
+dotnet tool install --global dotnet-ef --version "10.*"
+```
+
+Створення міграції:
+
+```bash
+dotnet ef migrations add InitialCreate --project src/Infrastructure --startup-project src/Api
+```
+
+Застосування міграцій:
+
+```bash
+dotnet ef database update --project src/Infrastructure --startup-project src/Api
+```
+
+Перегляд міграцій:
+
+```bash
+dotnet ef migrations list --project src/Infrastructure --startup-project src/Api
+```
+
+Після клонування репозиторію достатньо застосувати наявні міграції.
+
+### Скидання бази даних
+
+Для скидання БД необхідно зупинити API через `Ctrl+C` та виконати:
+
+```bash
+rm -f src/Api/data/app.db src/Api/data/app.db-shm src/Api/data/app.db-wal
+
+dotnet ef database update --project src/Infrastructure --startup-project src/Api
+```

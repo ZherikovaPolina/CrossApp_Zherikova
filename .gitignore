@@ -491,3 +491,8 @@ publish/
 publish-*/
 # Дані, створені під час роботи програми
 data/
+
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
